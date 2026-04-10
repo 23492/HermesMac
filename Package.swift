@@ -13,11 +13,7 @@ let package = Package(
             targets: ["HermesMac"]
         )
     ],
-    dependencies: [
-        // Dependencies worden per task toegevoegd.
-        // Task 10: swift-markdown-ui
-        // Task 11: Splash
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "HermesMac",

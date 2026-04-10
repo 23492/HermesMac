@@ -1,4 +1,4 @@
-# Task 00: Scaffold
+# Task 00: Scaffold ✅ Done
 
 **Status:** Niet gestart
 **Dependencies:** none
@@ -197,3 +197,12 @@ swift test
 - De `public` modifiers op `HermesMacApp` en `ContentView` zijn nodig omdat ze in een library zitten die vanuit een Xcode app target geïnstantieerd wordt
 - Als je een Mac hebt: probeer ook `swift test` te draaien om te verifiëren dat Swift Testing werkt
 - Als `swift package describe` klaagt over Swift version: check dat je `swift --version` 6.0 of hoger is
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 830b13a
+
+Scaffold opgezet volgens spec. Package.swift met Swift 6 tools version, library target + test target. HermesMacApp.swift in Sources/HermesMac/App/ met ContentView placeholder. SmokeTests.swift in Tests/HermesMacTests/. Placeholder files verwijderd. .gitignore was al compleet.
+
+Build niet geverifieerd op Linux (geen Swift toolchain), moet op Mac getest worden.
