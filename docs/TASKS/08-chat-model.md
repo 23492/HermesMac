@@ -1,6 +1,6 @@
-# Task 08: ChatModel + streaming integratie
+# Task 08: ChatModel + streaming integratie ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 03, Task 04, Task 07
 **Estimated effort:** 35 min
 
@@ -227,3 +227,24 @@ Streaming integratie test mag worden uitgesteld naar een followup.
 ## Open punten
 
 Deze task is de meest complexe in v1. Als je vast komt te zitten op de SwiftData+Observable interactie, implementeer een "dumber" variant waar je `messages: [MessageEntity]` manueel wist en herbouwt na elke update. Liever werkend dan elegant.
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** afcdb95
+
+Geïmplementeerd:
+- `ChatModel` met `@Observable @MainActor`, alle state properties en actions uit de spec
+- `send()` is sync (start intern een Task), cleart input, append user + assistant placeholder, streamt via HermesClient
+- `cancel()` cancelt de streaming task en bewaart partial content
+- `deleteMessage(_:)` verwijdert via repository en sync't lokale messages array
+- `ConversationRepository.delete(message:)` en `touch(_:)` toegevoegd
+- 10 unit tests voor state transitions (init, empty input, send, cancel, auto-title, delete)
+
+Afwijkingen van spec:
+- `send()` is niet `async` — de methode start zelf een Task. Dit is beter voor SwiftUI button actions die geen `await` hoeven.
+- `repositorySave()` stub uit de spec vervangen door echte `repository.touch(conversation)` call
+- `notifyContentChanged()` no-op verwijderd — SwiftData @Model muteert content direct, Observable tracking werkt via de Model macro
+- Streaming integration test uitgesteld (zoals spec toestaat)
+
+Build niet geverifieerd op Linux, moet op Mac getest worden.

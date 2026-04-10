@@ -58,4 +58,20 @@ public final class ConversationRepository {
         conversation.updatedAt = Date()
         try context.save()
     }
+
+    /// Delete a single message from its conversation.
+    public func delete(message: MessageEntity) throws {
+        if let conversation = message.conversation {
+            conversation.messages.removeAll { $0.id == message.id }
+            conversation.updatedAt = Date()
+        }
+        context.delete(message)
+        try context.save()
+    }
+
+    /// Touch a conversation's updatedAt and save.
+    public func touch(_ conversation: ConversationEntity) throws {
+        conversation.updatedAt = Date()
+        try context.save()
+    }
 }
