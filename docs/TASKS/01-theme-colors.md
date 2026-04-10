@@ -1,6 +1,6 @@
-# Task 01: Theme and cross-platform colors
+# Task 01: Theme and cross-platform colors ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 00
 **Estimated effort:** 15 min
 
@@ -116,6 +116,13 @@ swift build 2>&1 | tail -10
 
 ## Done when
 
-- [ ] `Sources/HermesMac/DesignSystem/Theme.swift` bestaat
-- [ ] Package bouwt nog steeds
-- [ ] Commit: `feat(task01): add Theme and cross-platform color helpers`
+- [x] `Sources/HermesMac/DesignSystem/Theme.swift` bestaat
+- [x] Package bouwt nog steeds
+- [x] Commit: `feat(task01): add Theme and cross-platform color helpers`
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 54d59b0
+
+Exact de spec gevolgd. Cross-platform Color extensions voor systemBackground, secondarySystemBackground, systemGray6 en separator. Theme enum met semantic tokens. Build niet geverifieerd op Linux, moet op Mac getest worden.
