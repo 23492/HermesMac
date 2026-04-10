@@ -1,6 +1,6 @@
-# Task 02: SSE line parser
+# Task 02: SSE line parser ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 00
 **Estimated effort:** 45 min
 
@@ -380,3 +380,19 @@ swift test --filter SSEParserTests 2>&1 | tail -20
 ## Open punten
 
 - Als je tegen het probleem aanloopt dat `AsyncLineSequence` als test helper niet werkt onder strict concurrency, markeer hem als `Sendable` en maak de `Iterator` struct properties `var` maar de hele sequence `let`. Dat is een bekende Swift 6 papercut.
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 8ba74c4
+
+Implementatie volgt de task spec exact. Drie files aangemaakt:
+- `SSEEvent.swift` — struct met data/event/id en isDone computed property
+- `SSELineStream.swift` — generic AsyncSequence die lines naar SSEEvents parsed
+- `SSEParserTests.swift` — 7 tests + AsyncLineSequence test helper
+
+Afwijkingen van de spec:
+- Test input strings gebruiken expliciete `\n` in plaats van triple-quoted `"""` strings. De `"""` variant in de spec heeft leading whitespace door indentatie die de parser zou breken. Met expliciete `\n` is de input exact correct.
+- `AsyncLineSequence.Iterator.lines` is `let` in plaats van `var` — het array wordt niet gemuteerd, alleen `index` muteert.
+
+Build niet geverifieerd op Linux, moet op Mac getest worden.
