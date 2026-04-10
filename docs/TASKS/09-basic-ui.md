@@ -1,6 +1,6 @@
-# Task 09: Basic UI — ChatView + input + conversation list
+# Task 09: Basic UI — ChatView + input + conversation list ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 08
 **Estimated effort:** 45 min
 
@@ -175,3 +175,24 @@ public struct ChatView: View {
 - Settings UI komt pas in task 15. Tot die tijd mag je voor testen je API key hardcoden in AppSettings init, maar **haal dat terug weg** voor je commit.
 - Als Kiran wil testen vóór task 15, zeg dan dat hij lldb-expression kan gebruiken:
   `expression -- AppSettings.shared.apiKey = "kG3Bw9..."`
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** ca815f2
+
+Alle 5 nieuwe view files aangemaakt + HermesMacApp.swift geüpdatet:
+
+- **RootView**: NavigationSplitView met @Query voor conversations, beheert selectie + new/delete acties
+- **ConversationListView**: presentational view met list, swipe-to-delete, toolbar new chat button
+- **ChatView**: volgt task skeleton, .task(id:) voor ChatModel lifecycle, ScrollViewReader voor auto-scroll bij streaming
+- **MessageBubbleView**: role-based alignment en kleuren via Theme tokens
+- **MessageComposerView**: multi-line TextField (axis: .vertical), send/cancel buttons, ProgressView tijdens streaming
+- **HermesMacApp**: nu met .modelContainer(ModelStack.shared) en .environment(AppSettings.shared)
+
+Afwijkingen:
+- Geen `ContentView` meer — vervangen door RootView (zoals task spec aangeeft)
+- `onSubmit` op TextField voor Return-to-send (Shift+Return voor newlines)
+- Removed old ContentView placeholder and Preview
+
+Build niet geverifieerd op Linux, moet op Mac getest worden. Mogelijke Swift 6 concurrency issues rond closure isolation bij MessageComposerView callbacks — verificatie op Xcode nodig.
