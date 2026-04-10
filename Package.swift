@@ -8,14 +8,14 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .library(
+        .executable(
             name: "HermesMac",
             targets: ["HermesMac"]
         )
     ],
     dependencies: [],
     targets: [
-        .target(
+        .executableTarget(
             name: "HermesMac",
             path: "Sources/HermesMac",
             swiftSettings: [
