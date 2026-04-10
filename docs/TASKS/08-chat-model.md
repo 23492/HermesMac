@@ -1,8 +1,8 @@
 # Task 08: ChatModel + streaming integratie
 
 **Status:** Niet gestart
-**Dependencies:** Task 03, Task 04, Task 05, Task 07
-**Estimated effort:** 40 min
+**Dependencies:** Task 03, Task 04, Task 07
+**Estimated effort:** 35 min
 
 ## Doel
 
@@ -54,7 +54,6 @@ public final class ChatModel {
     // MARK: - Dependencies
 
     private let client: HermesClient
-    private let selector: EndpointSelector
     private let settings: AppSettings
     private let repository: ConversationRepository
 
@@ -65,14 +64,12 @@ public final class ChatModel {
     public init(
         conversation: ConversationEntity,
         client: HermesClient,
-        selector: EndpointSelector,
         settings: AppSettings,
         repository: ConversationRepository
     ) {
         self.conversation = conversation
         self.messages = conversation.messages.sorted(by: { $0.createdAt < $1.createdAt })
         self.client = client
-        self.selector = selector
         self.settings = settings
         self.repository = repository
     }
@@ -138,19 +135,12 @@ public final class ChatModel {
         streamingTask = Task { [weak self] in
             guard let self else { return }
             do {
-                // Pick endpoint
-                guard let primary = self.settings.primaryURL else {
-                    throw HermesError.invalidURL
-                }
-                let primaryEndpoint = HermesEndpoint(baseURL: primary, apiKey: self.settings.apiKey)
-                let localEndpoint = self.settings.localURL.map {
-                    HermesEndpoint(baseURL: $0, apiKey: self.settings.apiKey)
-                }
-                let selection = try await self.selector.pick(
-                    primary: primaryEndpoint,
-                    local: localEndpoint
+                // Configure the client with the hardcoded backend URL and current key
+                let endpoint = HermesEndpoint(
+                    baseURL: self.settings.backendURL,
+                    apiKey: self.settings.apiKey
                 )
-                await self.client.setEndpoint(selection.endpoint)
+                await self.client.setEndpoint(endpoint)
 
                 let stream = try await self.client.streamChatCompletion(request: request)
 
@@ -217,7 +207,7 @@ Dit is geen vrijbrief voor scope creep. Alleen deze twee methods extra op de rep
 
 ## Tests
 
-Mock `HermesClient` en `EndpointSelector` via protocol extraction als nodig, of gebruik integration tests met MockURLProtocol.
+Mock `HermesClient` via protocol extraction als nodig, of gebruik integration tests met MockURLProtocol.
 
 Minimaal te testen:
 - Initial state na init

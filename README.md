@@ -21,11 +21,7 @@ Zie `docs/PLAN.md` voor de roadmap en `docs/TASKS/` voor individuele taak-specs.
                                                             └───────────────────┘
 ```
 
-Eén tunnel, twee endpoints:
-- `https://hermes-api.knoppsmart.com` — altijd bereikbaar, authenticated via Bearer token
-- `http://localhost:8642` — lokaal vanaf je Mac als je op hetzelfde netwerk zit
-
-De app ontdekt automatisch welke bereikbaar is en pakt de snelste. Geen VPN nodig, geen SSH tunnel, werkt onderweg.
+Eén URL, altijd: `https://hermes-api.knoppsmart.com/v1`. Via Cloudflare Tunnel, authenticated met een Bearer token. Werkt thuis, werkt onderweg, geen VPN nodig, geen SSH tunnel nodig, geen URL switching.
 
 ## Quickstart voor development
 
@@ -38,9 +34,9 @@ open Package.swift
 Build in Xcode, kies scheme `HermesMac` voor macOS of `HermesMac-iOS` voor iOS simulator.
 
 Configureer bij eerste start via Settings:
-- **Primary URL:** `https://hermes-api.knoppsmart.com/v1`
-- **Local URL (optional):** `http://localhost:8642/v1`
 - **API Key:** Bearer token (zie `/root/.hermes/.cloudflare.json → hermes_api_key` op de server)
+
+De backend URL is hardcoded op `https://hermes-api.knoppsmart.com/v1`. Als die ooit verandert, is dat een code change, geen settings change.
 
 ## Voor Claude Code agents die hieraan werken
 

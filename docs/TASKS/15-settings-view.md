@@ -1,24 +1,26 @@
-# Task 15: SettingsView (API key, URLs, about)
+# Task 15: SettingsView (API key, about)
 
 **Status:** Niet gestart
 **Dependencies:** Task 04
-**Estimated effort:** 30 min
+**Estimated effort:** 20 min
 
 ## Doel
 
-Een simpel Settings scherm waar de user zijn primary URL, optional local URL en API key kan invoeren. Plus een "About" sectie met versie + link naar de repo.
+Een simpel Settings scherm waar de user zijn API key kan invoeren. Plus een "About" sectie met versie + link naar de repo en een "Test connection" knop.
+
+De backend URL is hardcoded en wordt getoond als read-only info (niet editable).
 
 ## Scope
 
 ### In scope
 - `SettingsView.swift` met een `Form` lay-out
-- Velden: Primary URL, Local URL (optional), API Key (SecureField)
-- Show/hide toggle voor API key
-- Save acties schrijven naar AppSettings (die al Keychain achter de schermen doet)
+- API Key veld (SecureField met show/hide toggle)
+- Read-only display van `BackendConfig.baseURL`
 - "Test connection" knop die een `/models` call doet en toont of het werkt
-- About sectie met versie, "Open in GitHub" knop, "Clear all data" knop (alleen in debug)
+- About sectie met versie, "Open in GitHub" link
 
 ### Niet in scope
+- URL velden (hardcoded, niet editable)
 - Export/import van instellingen
 - Advanced section (timeout, retries etc)
 - Theme picker
@@ -52,17 +54,8 @@ public struct SettingsView: View {
 
         Form {
             Section("Backend") {
-                TextField("Primary URL", text: $settings.primaryURLString)
-                    .textContentType(.URL)
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    #endif
-
-                TextField("Local URL (optional)", text: $settings.localURLString)
-                    .textContentType(.URL)
-                    .autocorrectionDisabled()
+                LabeledContent("Server", value: BackendConfig.baseURL.absoluteString)
+                    .font(.system(.body, design: .monospaced))
             }
 
             Section("API Key") {
@@ -124,11 +117,11 @@ public struct SettingsView: View {
             isTesting = true
             testResult = nil
             do {
-                guard let primary = settings.primaryURL else {
-                    throw HermesError.invalidURL
-                }
                 let client = HermesClient()
-                await client.setEndpoint(HermesEndpoint(baseURL: primary, apiKey: settings.apiKey))
+                await client.setEndpoint(HermesEndpoint(
+                    baseURL: settings.backendURL,
+                    apiKey: settings.apiKey
+                ))
                 let models = try await client.listModels()
                 testResult = .success("✓ Verbonden. \(models.count) model(len) beschikbaar.")
             } catch {

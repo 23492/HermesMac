@@ -35,7 +35,7 @@ App icon, launch screen, empty states, error states, "try again" flows, basic an
 | 02 | SSE line parser (unit tested) | 00 | M1 |
 | 03 | HermesClient actor + chat completions | 02 | M2 |
 | 04 | AppSettings + KeychainStore | 00 | M2 |
-| 05 | EndpointSelector met race logica | 03, 04 | M2 |
+| 05 | ~~EndpointSelector~~ — GESCHRAPT, zie TASKS/05 | - | - |
 | 06 | SwiftData models + ModelStack | 00 | M3 |
 | 07 | ConversationRepository (main actor, simple) | 06 | M3 |
 | 08 | ChatModel + streaming integratie | 03, 07 | M3 |
@@ -55,8 +55,8 @@ App icon, launch screen, empty states, error states, "try again" flows, basic an
 
 ```
 00 → 02 → 03 → 08 → 09  (minimaal werkende chat)
-     ↓    ↓    ↑
-     04 ──┴────┘
+          ↑    ↑
+          04 ──┘
 ```
 
 Tot task 09 heb je niks visueels om te demonstreren. Daarna elke task toegevoegde waarde.
@@ -83,8 +83,7 @@ De app is v1-ready wanneer alle onderstaande waar zijn:
 - [ ] Markdown wordt correct gerenderd inclusief code blocks met syntax highlighting
 - [ ] Conversation history persisteert over app restarts
 - [ ] Je kan een conversation deleten en een message copyen
-- [ ] Local endpoint race werkt (als je beide configureert)
-- [ ] Via Cloudflare tunnel bereikbaar onderweg
+- [ ] Via Cloudflare tunnel bereikbaar onderweg én thuis
 - [ ] Geen crashes in 10 minuten typisch gebruik
 - [ ] Minimal test coverage (SSE parser + ChatModel state transitions)
 

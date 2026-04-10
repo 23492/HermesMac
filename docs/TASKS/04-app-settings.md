@@ -2,27 +2,25 @@
 
 **Status:** Niet gestart
 **Dependencies:** Task 00
-**Estimated effort:** 30 min
+**Estimated effort:** 25 min
 
 ## Doel
 
-Persistente app settings met API keys in Keychain en URLs in UserDefaults. Één centrale `AppSettings` observable klasse die de rest van de app gebruikt.
+Persistente app settings. De backend URL is hardcoded (zie `BackendConfig` verderop). Alleen de API key is user-input en moet in Keychain.
 
 ## Context
 
 De app moet onthouden:
-- Primary backend URL (default: `https://hermes-api.knoppsmart.com/v1`)
-- Optional local backend URL (default: leeg)
 - API key (in Keychain, NIET in UserDefaults)
-- Welk model de laatste keer is gebruikt
-- "Show local endpoint warning" preference (later)
+- Welk model de laatste keer is gebruikt (UserDefaults is prima)
 
-De API key is gevoelig en moet in Keychain. URLs en modelvoorkeur mogen in UserDefaults.
+De backend URL is niet user-configurable. Hardcoded naar `https://hermes-api.knoppsmart.com/v1`. Als die ooit verandert is dat een code change.
 
 ## Scope
 
 ### In scope
 - `Sources/HermesMac/Core/Settings/KeychainStore.swift` — thin wrapper om Security.framework
+- `Sources/HermesMac/Core/Settings/BackendConfig.swift` — constant hardcoded URL
 - `Sources/HermesMac/Core/Settings/AppSettings.swift` — `@Observable` class, singleton entry via environment
 - `Tests/HermesMacTests/KeychainStoreTests.swift` — basic write/read/delete test
 
@@ -30,8 +28,28 @@ De API key is gevoelig en moet in Keychain. URLs en modelvoorkeur mogen in UserD
 - Settings UI (dat is task 15)
 - Sync tussen devices
 - Versioned settings migration
+- User-configurable backend URL
 
 ## Implementation
+
+### BackendConfig
+
+**`Sources/HermesMac/Core/Settings/BackendConfig.swift`**:
+
+```swift
+import Foundation
+
+/// Hardcoded backend configuration. The app always talks to this URL.
+///
+/// If the backend URL ever changes, edit this file — it's not a setting.
+public enum BackendConfig {
+    /// The one and only Hermes backend URL.
+    public static let baseURL = URL(string: "https://hermes-api.knoppsmart.com/v1")!
+
+    /// Default model to use when creating a new conversation.
+    public static let defaultModel = "hermes-agent"
+}
+```
 
 ### KeychainStore
 
@@ -133,10 +151,6 @@ public enum KeychainError: Error, Equatable {
 
 **`Sources/HermesMac/Core/Settings/AppSettings.swift`**:
 
-```yaml
-NOTE: dit is pseudocode, echte syntax hieronder
-```
-
 ```swift
 import Foundation
 import Observation
@@ -154,32 +168,18 @@ public final class AppSettings {
     private let defaults = UserDefaults.standard
 
     private enum Key {
-        static let primaryURL = "hermes.primaryURL"
-        static let localURL = "hermes.localURL"
         static let apiKey = "apiKey"
         static let selectedModel = "hermes.selectedModel"
     }
 
-    // MARK: - Defaults
+    // MARK: - Public properties
 
-    private static let defaultPrimaryURL = "https://hermes-api.knoppsmart.com/v1"
-    private static let defaultModel = "hermes-agent"
-
-    // MARK: - Public properties (observable)
-
-    public var primaryURLString: String {
-        didSet { defaults.set(primaryURLString, forKey: Key.primaryURL) }
-    }
-
-    public var localURLString: String {
-        didSet { defaults.set(localURLString, forKey: Key.localURL) }
-    }
-
+    /// Currently selected model id. Defaults to `BackendConfig.defaultModel`.
     public var selectedModel: String {
         didSet { defaults.set(selectedModel, forKey: Key.selectedModel) }
     }
 
-    // API key is NOT stored in UserDefaults — always fetch from Keychain
+    /// API key is stored in Keychain — never UserDefaults.
     public var apiKey: String {
         get { keychain.getString(forKey: Key.apiKey) ?? "" }
         set {
@@ -193,24 +193,20 @@ public final class AppSettings {
 
     // MARK: - Derived
 
-    public var primaryURL: URL? {
-        URL(string: primaryURLString)
+    /// The hardcoded backend URL. Not user-configurable.
+    public var backendURL: URL {
+        BackendConfig.baseURL
     }
 
-    public var localURL: URL? {
-        localURLString.isEmpty ? nil : URL(string: localURLString)
-    }
-
+    /// Whether the user has entered an API key. URL is always valid.
     public var hasValidConfiguration: Bool {
-        primaryURL != nil && !apiKey.isEmpty
+        !apiKey.isEmpty
     }
 
     // MARK: - Init
 
     private init() {
-        self.primaryURLString = defaults.string(forKey: Key.primaryURL) ?? Self.defaultPrimaryURL
-        self.localURLString = defaults.string(forKey: Key.localURL) ?? ""
-        self.selectedModel = defaults.string(forKey: Key.selectedModel) ?? Self.defaultModel
+        self.selectedModel = defaults.string(forKey: Key.selectedModel) ?? BackendConfig.defaultModel
     }
 }
 ```
@@ -265,26 +261,25 @@ struct KeychainStoreTests {
 
 ## Verification
 
+Op een Mac:
 ```bash
-cd /root/HermesMac
-swift build 2>&1 | tail -10
-
-# Keychain tests only work on macOS/iOS. On Linux they will be skipped/failed.
-# If running on a Mac:
-swift test --filter KeychainStoreTests 2>&1 | tail -20
+swift build
+swift test --filter KeychainStoreTests
 # Expected: 4 tests pass
 ```
 
+Op Linux (geen Swift toolchain): review de code zorgvuldig, commit.
+
 ## Done when
 
+- [ ] `BackendConfig.swift` bestaat met de hardcoded URL
 - [ ] `KeychainStore.swift` bestaat met get/set/delete
 - [ ] `AppSettings.swift` bestaat als `@Observable` singleton
-- [ ] `KeychainStoreTests.swift` heeft minimaal 4 tests
-- [ ] Default primary URL is `https://hermes-api.knoppsmart.com/v1`
-- [ ] API key is **niet** in UserDefaults zichtbaar
-- [ ] Commit: `feat(task04): AppSettings with Keychain-backed API key`
+- [ ] `KeychainStoreTests.swift` heeft 4 tests
+- [ ] `AppSettings.backendURL` returnt de hardcoded `BackendConfig.baseURL`
+- [ ] API key is in Keychain, NIET in UserDefaults
+- [ ] Commit: `feat(task04): AppSettings with hardcoded backend URL and Keychain-backed API key`
 
 ## Open punten
 
-- Op Linux werkt `SecItemAdd` niet. De tests hiervoor zullen daar falen. Dit is verwacht — documenteer in de completion notes dat tests alleen op macOS/iOS passen.
-- In v1 is `AppSettings` een singleton. Als later blijkt dat we multiple instances willen voor testing, kan dat met een DI pattern. Voor nu: YAGNI.
+- Op Linux werkt `SecItemAdd` niet. Tests kunnen daar niet draaien. Kiran test op zijn Mac.

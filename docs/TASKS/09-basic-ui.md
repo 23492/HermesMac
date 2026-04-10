@@ -105,11 +105,9 @@ public struct ChatView: View {
             // Construct the ChatModel when the conversation changes
             let repo = ConversationRepository(context: modelContext)
             let client = HermesClient()
-            let selector = EndpointSelector()
             self.model = ChatModel(
                 conversation: conversation,
                 client: client,
-                selector: selector,
                 settings: settings,
                 repository: repo
             )

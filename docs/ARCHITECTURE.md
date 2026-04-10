@@ -68,23 +68,23 @@ Hij levert GEEN aparte `tool_calls` in deltas. Tool execution gebeurt server-sid
 
 Zie `API_REFERENCE.md` voor de volledige specificatie inclusief concrete voorbeelden uit een live call.
 
-## Connectie strategie: dual endpoint met race
+## Connectie strategie: één URL, altijd Cloudflare
 
-De app kent twee backend URLs:
+De app gebruikt één backend URL: `https://hermes-api.knoppsmart.com/v1`. Altijd. Via Cloudflare Tunnel.
 
-1. **Primary:** `https://hermes-api.knoppsmart.com/v1` — altijd bereikbaar via Cloudflare Tunnel
-2. **Local (optional):** `http://localhost:8642/v1` — alleen bereikbaar wanneer op hetzelfde LAN (typisch: MacBook aan huis-wifi)
+Deze URL is **hardcoded** in de app (als constant in een config file), niet user-configurable. Als de URL ooit moet veranderen is dat een code change, niet een settings change.
 
-Bij elke nieuwe chat request doet de client een fast-race tussen de twee (als beide zijn geconfigureerd):
+### Waarom niet local + primary?
 
-- Stuur een HEAD/GET naar `/v1/models` op beide met 500ms timeout
-- Wie eerst met 200 antwoordt, gebruiken we voor deze sessie
-- De keuze wordt gecached voor 30 seconden, daarna opnieuw racen
-- Als alleen primary geconfigureerd is, skip de race
+Eerdere versie van dit document beschreef een dual-endpoint systeem met een race tussen `localhost:8642` en de Cloudflare hostname. Dat is overengineering:
 
-Rationale: thuis wil je de directe connectie zonder tunnel-latency, onderweg wil je de tunnel zonder handmatig switchen.
+- Cloudflare Edge tot thuis is typisch 20-50ms extra latency. Op SSE streaming is dat imperceptible.
+- De user ziet nooit een verschil tussen thuis en onderweg — zelfde UX overal.
+- Geen endpoint picker UI nodig, geen race logic, geen cache invalidation, geen edge cases als "local lijkt bereikbaar maar antwoordt niet".
+- Een enkele code path is makkelijker te debuggen en testen.
+- De tunnel is altijd al up (cloudflared systemd service). Als die ligt ligt de hele setup, dus je wint niks met een local fallback.
 
-Implementatie: zie `docs/TASKS/08-endpoint-selector.md`.
+Eén URL, één code path, klaar.
 
 ## Authenticatie
 

@@ -95,28 +95,18 @@ Nadelen: meer infrastructuur, interactieve login flow in de app (OAuth-like), co
 
 **Niet in v1.** Voeg toe als/wanneer nodig in een losse task.
 
-## Dual-endpoint strategie in de client
+## Eén URL, altijd
 
-De app configureert twee URLs:
+De app gebruikt altijd dezelfde URL: `https://hermes-api.knoppsmart.com/v1`. Hardcoded. Niet user-configurable. Geen local fallback, geen race, geen picker.
 
-1. `primaryURL` = `https://hermes-api.knoppsmart.com/v1`
-2. `localURL` = `http://localhost:8642/v1` (alleen als de user hem invult)
+Rationale:
 
-De `EndpointSelector` (zie `docs/TASKS/08-endpoint-selector.md`) doet bij elke chat sessie een race:
+- Cloudflare Edge voegt 20-50ms latency toe ten opzichte van direct LAN. Op SSE streaming met token-per-token updates is dat niet merkbaar.
+- De user heeft overal dezelfde ervaring — thuis op wifi, onderweg op 4G, op een trein-wifi. Zelfde code path, zelfde gedrag.
+- Eén URL = één fail mode. Als de backend niet bereikbaar is weet je waar te kijken (`systemctl status cloudflared` en `curl http://localhost:8642/v1/models` op de server).
+- Minder complexity in de app, geen race logic, geen cache invalidatie.
 
-1. Doe een `GET /v1/models` naar beide URLs parallel met 500ms timeout
-2. De eerste die een 200 teruggeeft wint
-3. Cache de keuze voor 30 seconden
-4. Als geen van beide antwoordt: error dialog met "Kan backend niet bereiken"
-
-Waarom race en niet "probeer local eerst dan primary"? Omdat de local URL stilletjes kan falen door wisselend wifi netwerk, slaap-status van de server, of DHCP herinitialisatie. Een race van 500ms is onmerkbaar snel voor de user en 100% betrouwbaar.
-
-Het gedrag voor de user:
-
-- **Thuis op wifi:** local wint de race, zero latency, geen internet nodig
-- **Onderweg op 4G/5G:** primary wint de race, latency van Cloudflare edge (typisch 20-80ms)
-- **Thuis maar gateway down:** beide falen → duidelijke error
-- **Onderweg maar tunnel down:** primary faalt → duidelijke error met "server lijkt offline" hint
+Als je ooit direct op je LAN wil praten (voor debugging bv.), doe dat met een terminal en `curl`. De app gaat altijd via Cloudflare.
 
 ## Troubleshooting cheat sheet
 
