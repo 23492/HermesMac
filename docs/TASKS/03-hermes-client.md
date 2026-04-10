@@ -1,6 +1,6 @@
-# Task 03: HermesClient actor
+# Task 03: HermesClient actor ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 02
 **Estimated effort:** 45 min
 
@@ -422,3 +422,10 @@ swift test --filter HermesClientTests 2>&1 | tail -20
 
 - De streaming test (die daadwerkelijk een fake SSE body levert via MockURLProtocol) is complexer en vereist een stream-capable mock. Leave that voor een later follow-up als de integratie tegen een live backend al werkt.
 - Als Swift 6 klaagt over `nonisolated(unsafe)` op de stubs dict: dat is de enige plek waar we het accepteren omdat URLProtocol class methods geen andere optie bieden.
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 8397dff
+
+Alle vier files aangemaakt exact volgens task spec: ChatCompletion.swift (request/response models), HermesError.swift (typed errors met Nederlandse descriptions), HermesClient.swift (actor met listModels + streamChatCompletion), en HermesClientTests.swift (3 tests met MockURLProtocol). Build niet geverifieerd op Linux, moet op Mac getest worden.
