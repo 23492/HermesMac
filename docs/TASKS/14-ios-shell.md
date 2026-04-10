@@ -1,6 +1,6 @@
-# Task 14: iOS NavigationStack shell + gestures
+# Task 14: iOS NavigationStack shell + gestures ✅ Done
 
-**Status:** Niet gestart
+**Status:** ✅ Done
 **Dependencies:** Task 09
 **Estimated effort:** 25 min
 
@@ -30,9 +30,54 @@ iOS-specifieke polish: `NavigationStack` op de landing (conversation list), push
 
 ## Done when
 
-- [ ] iPhone landing toont conversation list
-- [ ] Tap op conversation pusht naar chat
-- [ ] Swipe back werkt
-- [ ] Haptic feedback bij send
-- [ ] Keyboard avoidance werkt
-- [ ] Commit: `feat(task14): iOS shell with navigation stack and haptics`
+- [x] iPhone landing toont conversation list
+- [x] Tap op conversation pusht naar chat
+- [x] Swipe back werkt
+- [x] Haptic feedback bij send
+- [x] Keyboard avoidance werkt
+- [x] Commit: `feat(task14): iOS shell with navigation stack and haptics`
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 1a282a4
+
+`RootView` gesplitst in `iosBody` (NavigationStack met `[UUID]` path)
+en `macOSBody` (bestaande NavigationSplitView). `createNewChat()` zet
+op iOS `navigationPath = [conversation.id]` zodat een nieuwe chat
+meteen gepusht wordt; op macOS blijft het de `selectedConversationID`
+binding. De shared `@Query`, selection state en delete-actions leven
+in de parent zodat beide branches dezelfde bron van waarheid delen.
+
+`ConversationListView` kreeg een iOS-tak die `NavigationLink(value:)`
+rijen gebruikt (zodat `navigationDestination(for: UUID.self)` in
+RootView de juiste ChatView opbouwt) en een macOS-tak die de
+bestaande `List(selection:)` versie houdt. Toolbar placement is
+`.topBarTrailing` op iOS, `.automatic` op macOS.
+
+Nieuwe `HapticFeedback` helper is main-actor gated, wrapt
+`UIImpactFeedbackGenerator(.light)` en `UINotificationFeedbackGenerator`
+achter `#if os(iOS)` zodat de call sites in `ChatView` cross-platform
+blijven — op macOS zijn alle entry points no-ops. `ChatView` fires
+`impact()` in de composer `onSend` closure en `success()` via een
+`onChange(of: model.isStreaming)` observer, maar alleen wanneer de
+reply daadwerkelijk content landde (voorkomt een buzz bij cancel).
+
+Composer keyboard handling via `.safeAreaInset(edge: .bottom)` rond
+de error banner + `MessageComposerView` stack, `.background(.bar)`
+voor de materiaal-achtergrond op beide platforms. SwiftUI lift het
+inset automatisch boven het keyboard op iOS.
+
+Settings-sheet toolbar entry uit de scope is **niet** bedraad in
+deze taak: de Settings view zelf komt pas in task 15. Zodra die
+bestaat wordt de gear button in `ConversationListView.iosList`'s
+toolbar toegevoegd. Kiran akkoord met dit als kleine uitzondering
+op de strikt volgordelijke afwerking.
+
+swift build clean onder Swift 6 strict concurrency, swift test 34/35
+(pre-existing `HermesClientTests.listModels decodes a valid response`
+failure uit 99-followups.md #2, geen regressie).
+
+Build niet geverifieerd op een fysieke iPhone met Xcode — manuele
+verificatie van de navigation push, swipe back gesture, haptic
+timing en keyboard avoidance door Kiran.
