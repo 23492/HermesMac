@@ -13,10 +13,15 @@ let package = Package(
             targets: ["HermesMac"]
         )
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.0")
+    ],
     targets: [
         .executableTarget(
             name: "HermesMac",
+            dependencies: [
+                .product(name: "MarkdownUI", package: "swift-markdown-ui")
+            ],
             path: "Sources/HermesMac",
             swiftSettings: [
                 .swiftLanguageMode(.v6)

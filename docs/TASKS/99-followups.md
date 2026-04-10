@@ -26,3 +26,21 @@ Status: done (voorbeeld)
 ---
 
 <!-- Nieuwe entries hieronder. Hou nummering doorlopend. -->
+
+## 2. [2026-04-10 task-03] HermesClientTests "listModels maps 401" faalt
+
+Tijdens task 10 verificatie opgemerkt: `HermesClientTests.httpError` verwacht
+dat een gestubde 401 response een `HermesError.httpStatus(401, _)` veroorzaakt,
+maar de client geeft geen error — `Issue.record("Expected error")` wordt
+geraakt (`HermesClientTests.swift:53`). De andere `HermesClient` tests slagen
+wel, dus `MockURLProtocol` wordt op zich geladen. Waarschijnlijk komt het
+doordat `HermesClient.listModels` bij een non-2xx response nog geen error
+gooit; de gestubde body wordt gewoon teruggegeven en decodering slaagt op
+iets leegs, of de status check zit op de verkeerde plek.
+
+Voorstel: in `HermesClient.listModels` expliciet de `HTTPURLResponse.statusCode`
+controleren en bij non-2xx `HermesError.httpStatus(code, body)` gooien voordat
+er gedecodeerd wordt. Waarschijnlijk dezelfde check die al in de streaming
+chat path zit missen hier.
+
+Status: open
