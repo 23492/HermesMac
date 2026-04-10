@@ -1,6 +1,6 @@
-# Task 06: SwiftData models + ModelStack
+# Task 06: SwiftData models + ModelStack ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 00
 **Estimated effort:** 25 min
 
@@ -170,6 +170,13 @@ struct ModelStackTests {
 
 ## Done when
 
-- [ ] Drie persistence files aangemaakt
+- [x] Drie persistence files aangemaakt
 - [ ] 2 tests passen (op Mac; op Linux zonder SwiftData is dit skippable)
-- [ ] Commit: `feat(task06): SwiftData conversation and message models`
+- [x] Commit: `feat(task06): SwiftData conversation and message models`
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** eae7b01
+
+Drie persistence files aangemaakt exact volgens spec: ConversationEntity, MessageEntity, ModelStack. Tests geschreven maar niet geverifieerd op Linux (SwiftData is Apple-only). Build niet geverifieerd op Linux, moet op Mac getest worden.
