@@ -42,46 +42,59 @@ public struct ChatView: View {
 
     @ViewBuilder
     private func chatContent(model: ChatModel) -> some View {
-        VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(model.messages) { msg in
-                            MessageBubbleView(
-                                message: msg,
-                                onCopy: { Clipboard.copy(msg.content) },
-                                onDelete: { model.deleteMessage(msg) },
-                                onRegenerate: canRegenerate(msg, in: model)
-                                    ? { model.regenerate() }
-                                    : nil
-                            )
-                            .id(msg.id)
-                        }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(model.messages) { msg in
+                        MessageBubbleView(
+                            message: msg,
+                            onCopy: { Clipboard.copy(msg.content) },
+                            onDelete: { model.deleteMessage(msg) },
+                            onRegenerate: canRegenerate(msg, in: model)
+                                ? { model.regenerate() }
+                                : nil
+                        )
+                        .id(msg.id)
                     }
-                    .padding()
                 }
-                .onChange(of: model.messages.count) { _, _ in
-                    scrollToBottom(proxy: proxy, messages: model.messages)
-                }
-                .onChange(of: model.messages.last?.content) { _, _ in
-                    scrollToBottom(proxy: proxy, messages: model.messages)
-                }
+                .padding()
             }
-
-            if let error = model.errorMessage {
-                errorBanner(error)
+            .onChange(of: model.messages.count) { _, _ in
+                scrollToBottom(proxy: proxy, messages: model.messages)
             }
+            .onChange(of: model.messages.last?.content) { _, _ in
+                scrollToBottom(proxy: proxy, messages: model.messages)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if let error = model.errorMessage {
+                    errorBanner(error)
+                }
 
-            MessageComposerView(
-                text: Binding(
-                    get: { model.inputText },
-                    set: { model.inputText = $0 }
-                ),
-                isStreaming: model.isStreaming,
-                focus: $composerFocused,
-                onSend: { model.send() },
-                onCancel: { model.cancel() }
-            )
+                MessageComposerView(
+                    text: Binding(
+                        get: { model.inputText },
+                        set: { model.inputText = $0 }
+                    ),
+                    isStreaming: model.isStreaming,
+                    focus: $composerFocused,
+                    onSend: {
+                        HapticFeedback.impact()
+                        model.send()
+                    },
+                    onCancel: { model.cancel() }
+                )
+            }
+            .background(.bar)
+        }
+        .onChange(of: model.isStreaming) { wasStreaming, isStreaming in
+            // Fire a success haptic on the streaming-finished transition,
+            // but only when the reply actually landed content (avoids a
+            // buzz when the user cancels an empty stream).
+            if wasStreaming && !isStreaming && !(model.messages.last?.content.isEmpty ?? true) {
+                HapticFeedback.success()
+            }
         }
         .focusedSceneValue(\.cancelStreamingAction) {
             model.cancel()
