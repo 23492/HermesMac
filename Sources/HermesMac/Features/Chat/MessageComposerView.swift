@@ -7,14 +7,21 @@ public struct MessageComposerView: View {
     let onSend: () -> Void
     let onCancel: () -> Void
 
+    /// External focus binding so ``ChatView`` can drive keyboard focus
+    /// from menu commands (Cmd+K on macOS) while still owning the
+    /// `@FocusState` itself.
+    private let focusBinding: FocusState<Bool>.Binding
+
     public init(
         text: Binding<String>,
         isStreaming: Bool,
+        focus: FocusState<Bool>.Binding,
         onSend: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         self._text = text
         self.isStreaming = isStreaming
+        self.focusBinding = focus
         self.onSend = onSend
         self.onCancel = onCancel
     }
@@ -30,6 +37,7 @@ public struct MessageComposerView: View {
                     .padding(8)
                     .background(Theme.secondaryBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .focused(focusBinding)
                     .onSubmit {
                         if !isStreaming && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             onSend()

@@ -10,6 +10,11 @@ public struct ChatView: View {
 
     @State private var model: ChatModel?
 
+    /// Keyboard focus state for the composer text field. Exposed to
+    /// ``HermesMacCommands`` via `.focusedSceneValue(\.focusComposerAction)`
+    /// so Cmd+K can pull focus back into the composer.
+    @FocusState private var composerFocused: Bool
+
     public init(conversation: ConversationEntity) {
         self.conversation = conversation
     }
@@ -73,9 +78,16 @@ public struct ChatView: View {
                     set: { model.inputText = $0 }
                 ),
                 isStreaming: model.isStreaming,
+                focus: $composerFocused,
                 onSend: { model.send() },
                 onCancel: { model.cancel() }
             )
+        }
+        .focusedSceneValue(\.cancelStreamingAction) {
+            model.cancel()
+        }
+        .focusedSceneValue(\.focusComposerAction) {
+            composerFocused = true
         }
     }
 

@@ -10,5 +10,11 @@ struct HermesMacApp: App {
                 .modelContainer(ModelStack.shared)
                 .environment(AppSettings.shared)
         }
+        #if os(macOS)
+        .defaultSize(width: 900, height: 700)
+        .commands {
+            HermesMacCommands()
+        }
+        #endif
     }
 }

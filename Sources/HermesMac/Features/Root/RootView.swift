@@ -30,6 +30,7 @@ public struct RootView: View {
                 emptyState
             }
         }
+        .focusedSceneValue(\.newChatAction, createNewChat)
     }
 
     // MARK: - Empty state
