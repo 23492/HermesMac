@@ -1,28 +1,3 @@
-# Task 07: ConversationRepository ✅ Done
-
-**Status:** Done
-**Dependencies:** Task 06
-**Estimated effort:** 20 min
-
-## Doel
-
-Een simpele `@MainActor` repository die CRUD op conversations doet. Geen abstracties, geen protocols, geen dependency injection magie. Gewoon een class die een ModelContext vasthoudt.
-
-## Scope
-
-### In scope
-- `Sources/HermesMac/Core/Persistence/ConversationRepository.swift`
-- Methods: `listAll()`, `create(model:)`, `delete(_:)`, `appendMessage(_:to:)`
-- `Tests/HermesMacTests/ConversationRepositoryTests.swift`
-
-### Niet in scope
-- Zoeken (later)
-- Pagination
-- Tagging of folders
-
-## Implementation
-
-```swift
 import Foundation
 import SwiftData
 
@@ -37,7 +12,7 @@ public final class ConversationRepository {
 
     /// All conversations sorted by updatedAt descending.
     public func listAll() throws -> [ConversationEntity] {
-        var descriptor = FetchDescriptor<ConversationEntity>(
+        let descriptor = FetchDescriptor<ConversationEntity>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         return try context.fetch(descriptor)
@@ -59,6 +34,7 @@ public final class ConversationRepository {
     }
 
     /// Append a message to a conversation and touch its updatedAt.
+    @discardableResult
     public func appendMessage(
         role: String,
         content: String,
@@ -83,21 +59,3 @@ public final class ConversationRepository {
         try context.save()
     }
 }
-```
-
-## Tests
-
-Test dat create, append, delete en listAll correct werken, en dat updatedAt wordt aangeraakt bij append.
-
-## Done when
-
-- [x] Repository bestaat
-- [x] 4+ tests (5 tests: create, listAll sorted, delete cascade, appendMessage, updateTitle)
-- [x] Commit: `feat(task07): ConversationRepository with basic CRUD`
-
-## Completion notes
-
-**Date:** 2026-04-10
-**Commit:** d696264
-
-ConversationRepository geïmplementeerd exact volgens spec. 5 tests geschreven die alle CRUD operaties en sortering dekken. Build niet geverifieerd op Linux, moet op Mac getest worden.
