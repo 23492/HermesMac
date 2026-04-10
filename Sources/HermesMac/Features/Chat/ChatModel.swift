@@ -92,7 +92,62 @@ public final class ChatModel {
             try? repository.updateTitle(title, for: conversation)
         }
 
-        // Create placeholder assistant message
+        startStreaming()
+    }
+
+    /// Regenerates the assistant's last response.
+    ///
+    /// Deletes the most recent assistant message and re-runs streaming with
+    /// the remaining history. Does nothing if the last message is not an
+    /// assistant reply, if there is no preceding user message, or if a
+    /// stream is already active.
+    public func regenerate() {
+        guard !isStreaming else { return }
+        guard let lastAssistant = messages.last, lastAssistant.role == "assistant" else {
+            return
+        }
+        guard messages.count >= 2, messages[messages.count - 2].role == "user" else {
+            return
+        }
+
+        errorMessage = nil
+        streamingTask?.cancel()
+
+        // Remove the previous assistant answer before requesting a new one
+        do {
+            try repository.delete(message: lastAssistant)
+            messages.removeAll { $0.id == lastAssistant.id }
+        } catch {
+            errorMessage = "Kan vorig antwoord niet verwijderen: \(error.localizedDescription)"
+            return
+        }
+
+        startStreaming()
+    }
+
+    /// Cancels the active streaming task, keeping any partial content.
+    public func cancel() {
+        streamingTask?.cancel()
+        streamingTask = nil
+        isStreaming = false
+    }
+
+    /// Deletes a message from the conversation.
+    public func deleteMessage(_ message: MessageEntity) {
+        do {
+            try repository.delete(message: message)
+            messages.removeAll { $0.id == message.id }
+        } catch {
+            errorMessage = "Kan bericht niet verwijderen: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Private
+
+    /// Shared core used by ``send()`` and ``regenerate()``: creates an empty
+    /// assistant placeholder, snapshots the current message history and
+    /// starts a streaming task that writes chunks into the placeholder.
+    private func startStreaming() {
         let assistantMessage: MessageEntity
         do {
             assistantMessage = try repository.appendMessage(
@@ -119,30 +174,10 @@ public final class ChatModel {
             stream: true
         )
 
-        // Start streaming
         streamingTask = Task {
             await performStreaming(request: request, into: assistantMessage)
         }
     }
-
-    /// Cancels the active streaming task, keeping any partial content.
-    public func cancel() {
-        streamingTask?.cancel()
-        streamingTask = nil
-        isStreaming = false
-    }
-
-    /// Deletes a message from the conversation.
-    public func deleteMessage(_ message: MessageEntity) {
-        do {
-            try repository.delete(message: message)
-            messages.removeAll { $0.id == message.id }
-        } catch {
-            errorMessage = "Kan bericht niet verwijderen: \(error.localizedDescription)"
-        }
-    }
-
-    // MARK: - Private
 
     /// Performs the actual streaming loop, appending chunks to the assistant message.
     private func performStreaming(

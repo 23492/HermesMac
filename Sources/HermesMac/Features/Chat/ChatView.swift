@@ -42,8 +42,15 @@ public struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(model.messages) { msg in
-                            MessageBubbleView(message: msg)
-                                .id(msg.id)
+                            MessageBubbleView(
+                                message: msg,
+                                onCopy: { Clipboard.copy(msg.content) },
+                                onDelete: { model.deleteMessage(msg) },
+                                onRegenerate: canRegenerate(msg, in: model)
+                                    ? { model.regenerate() }
+                                    : nil
+                            )
+                            .id(msg.id)
                         }
                     }
                     .padding()
@@ -70,6 +77,14 @@ public struct ChatView: View {
                 onCancel: { model.cancel() }
             )
         }
+    }
+
+    /// Regenerate is only offered on the last assistant message, since
+    /// ``ChatModel/regenerate()`` always replaces the tail of the
+    /// conversation. Hiding the menu item elsewhere keeps the UI honest.
+    private func canRegenerate(_ message: MessageEntity, in model: ChatModel) -> Bool {
+        guard message.role == "assistant" else { return false }
+        return model.messages.last?.id == message.id
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy, messages: [MessageEntity]) {

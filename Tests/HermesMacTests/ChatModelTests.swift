@@ -159,4 +159,64 @@ struct ChatModelTests {
 
         #expect(model.messages.isEmpty)
     }
+
+    @Test("regenerate does nothing without assistant message")
+    func regenerateNoAssistant() throws {
+        let (conv, client, settings, repo) = try makeDependencies()
+        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        let model = ChatModel(
+            conversation: conv,
+            client: client,
+            settings: settings,
+            repository: repo
+        )
+
+        #expect(model.messages.count == 1)
+
+        model.regenerate()
+
+        #expect(model.messages.count == 1)
+        #expect(model.isStreaming == false)
+    }
+
+    @Test("regenerate replaces last assistant message and restarts streaming")
+    func regenerateReplacesTail() throws {
+        let (conv, client, settings, repo) = try makeDependencies()
+        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        let oldAssistant = try repo.appendMessage(
+            role: "assistant",
+            content: "old reply",
+            to: conv
+        )
+        let model = ChatModel(
+            conversation: conv,
+            client: client,
+            settings: settings,
+            repository: repo
+        )
+
+        #expect(model.messages.count == 2)
+        #expect(model.messages.last?.id == oldAssistant.id)
+
+        model.regenerate()
+
+        // Old assistant is gone, new empty placeholder is appended
+        #expect(model.messages.count == 2)
+        #expect(model.messages.last?.id != oldAssistant.id)
+        #expect(model.messages.last?.role == "assistant")
+        #expect(model.messages.last?.content == "")
+        #expect(model.isStreaming == true)
+    }
+
+    @Test("regenerate while streaming is ignored")
+    func regenerateWhileStreamingIgnored() throws {
+        let model = try makeModel()
+        model.inputText = "first"
+        model.send()
+
+        let beforeCount = model.messages.count
+        model.regenerate()
+
+        #expect(model.messages.count == beforeCount)
+    }
 }
