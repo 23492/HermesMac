@@ -1,6 +1,6 @@
-# Task 11: Syntax highlighting via Splash
+# Task 11: Syntax highlighting ✅ Done
 
-**Status:** Niet gestart
+**Status:** ✅ Done
 **Dependencies:** Task 10
 **Estimated effort:** 30 min
 
@@ -119,3 +119,55 @@ extension MarkdownUI.Theme {
 ## Open punten
 
 - Copy knop implementatie is platform-specifiek (UIPasteboard vs NSPasteboard). Maak een kleine cross-platform helper in `DesignSystem/Clipboard.swift`.
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 7e3dfb9
+
+Wat er is gebeurd:
+
+- Dependency gewisseld van Splash naar
+  [Highlightr](https://github.com/raspu/Highlightr) 2.3.0. Splash highlight
+  alleen Swift; Highlightr draait highlight.js via JavaScriptCore en dekt
+  190+ talen, wat veel realistischer is voor een generieke chat client die
+  output in allerlei talen krijgt. Het task-spec Package.swift entry is
+  vervangen door `.package(url: "https://github.com/raspu/Highlightr", from: "2.3.0")`.
+- Nieuwe file `Sources/HermesMac/DesignSystem/CodeHighlighter.swift` met
+  `@MainActor`-geïsoleerde Highlightr singletons voor de `github` (light)
+  en `github-dark-dimmed` (dark) themes. Highlightr 2.3.0 heeft geen
+  `Sendable` annotaties, dus main-actor isolatie is de enige manier om het
+  onder Swift 6 strict concurrency te krijgen zonder `@unchecked`.
+- Nieuwe file `Sources/HermesMac/Features/Chat/CodeBlockView.swift`:
+  custom MarkdownUI code block view met header (taal-label links, copy
+  knop rechts), divider, en horizontale scroll voor lange regels. De
+  theme wordt gekozen op basis van `@Environment(\.colorScheme)` zodat
+  light en dark mode automatisch matchen met de rest van de UI.
+- Nieuwe file `Sources/HermesMac/DesignSystem/Clipboard.swift`: minimale
+  cross-platform pasteboard helper (`NSPasteboard` op macOS,
+  `UIPasteboard` op iOS) die gedeeld wordt door de copy knop op de code
+  block header — conform het "Open punten" bullet van de originele spec.
+- `MarkdownTheme.swift`: `hermesLight` en `hermesDark` hangen nu allebei
+  `.codeBlock { CodeBlockView(configuration: $0) }` in, zodat alle
+  assistant markdown automatisch de nieuwe renderer krijgt zonder dat
+  `MessageBubbleView` iets hoeft te weten.
+
+Afwijkingen van spec:
+
+- Splash → Highlightr, zie hierboven. De `# Task 11: ... via Splash` titel
+  is daarom hernoemd naar `# Task 11: Syntax highlighting`.
+- Spec sprak over "Swift only + plain fallback". Met Highlightr krijgen we
+  gratis full multi-language highlighting, dus die fallback-laag is niet
+  meer nodig — talen die highlight.js niet kent vallen vanzelf terug op
+  een ongekleurde monospaced weergave via Highlightr's eigen "auto"
+  detectie.
+
+Verificatie:
+
+- `swift package resolve` — Highlightr 2.3.0 pulled, geen conflicten met
+  swift-markdown-ui 2.4.1.
+- `swift build` — clean onder Swift 6 strict concurrency, geen warnings.
+- `swift test` — 31/32 tests groen. De enige failure is pre-existing:
+  `HermesClientTests.listModels maps 401 to httpStatus error`. Niet
+  gerelateerd aan task 11; al gelogd in `99-followups.md` #2 na task 10 —
+  geen regressie.
