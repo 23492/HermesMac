@@ -14,13 +14,15 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.0")
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.0"),
+        .package(url: "https://github.com/raspu/Highlightr.git", from: "2.3.0")
     ],
     targets: [
         .executableTarget(
             name: "HermesMac",
             dependencies: [
-                .product(name: "MarkdownUI", package: "swift-markdown-ui")
+                .product(name: "MarkdownUI", package: "swift-markdown-ui"),
+                .product(name: "Highlightr", package: "Highlightr")
             ],
             path: "Sources/HermesMac",
             swiftSettings: [
