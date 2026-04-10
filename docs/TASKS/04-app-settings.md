@@ -1,6 +1,6 @@
-# Task 04: AppSettings + KeychainStore
+# Task 04: AppSettings + KeychainStore ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 00
 **Estimated effort:** 25 min
 
@@ -283,3 +283,16 @@ Op Linux (geen Swift toolchain): review de code zorgvuldig, commit.
 ## Open punten
 
 - Op Linux werkt `SecItemAdd` niet. Tests kunnen daar niet draaien. Kiran test op zijn Mac.
+
+## Completion notes
+
+**Date:** 2026-04-10
+**Commit:** 1c95977
+
+Alle vier de files aangemaakt exact volgens spec:
+- `BackendConfig.swift` met hardcoded URL en default model
+- `KeychainStore.swift` als `Sendable` struct met Security.framework wrapper
+- `AppSettings.swift` als `@Observable @MainActor` singleton met Keychain-backed API key
+- `KeychainStoreTests.swift` met 4 tests (write/read, overwrite, delete, missing key)
+
+Build niet geverifieerd op Linux, moet op Mac getest worden.
