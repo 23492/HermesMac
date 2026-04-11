@@ -1,6 +1,6 @@
 # Task 27: Move CodeBlockView + trailing newline fix (#10, #17)
 
-**Status:** Open
+**Status:** Done
 **Branch:** `fix/task27-codeblock-move`
 **Followups:** #10, #17
 
