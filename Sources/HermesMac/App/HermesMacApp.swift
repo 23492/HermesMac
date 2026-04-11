@@ -28,6 +28,14 @@ struct HermesMacApp: App {
     @State private var containerResult: Result<ModelContainer, Error>
 
     init() {
+        #if os(macOS)
+        // SPM executables are not wrapped in a .app bundle, so macOS
+        // may not treat the process as a regular foreground app. Setting
+        // the activation policy explicitly ensures the app gets a dock
+        // icon, menu bar, and — critically — keyboard event delivery to
+        // text fields.
+        NSApplication.shared.setActivationPolicy(.regular)
+        #endif
         _containerResult = State(initialValue: ModelStack.shared)
     }
 
