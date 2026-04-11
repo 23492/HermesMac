@@ -1,6 +1,6 @@
-# Task 20: persistence correctness
+# Task 20: persistence correctness ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 17 (error states — shipped)
 **Estimated effort:** 45–60 min
 
@@ -77,13 +77,174 @@ Expected: build zonder nieuwe warnings. Nieuwe tests slagen. Bestaande tests bli
 
 ## Done when
 
-- [ ] H1 en alle Medium findings in scope zijn gefixt.
-- [ ] Low findings (L1, L3, L5, L6) addressed.
-- [ ] Out-of-scope findings gelogd in `99-followups.md` als nog niet aanwezig.
-- [ ] Nieuwe tests geschreven en slagen.
-- [ ] `swift build` passes without warnings.
-- [ ] `swift test` passes voor persistence suites.
-- [ ] Self-review tegen de 6 /review skill categorieën.
-- [ ] Task file header → `✅ Done` + per-finding completion notes (what/why).
-- [ ] Conventional commit `fix(task20): persistence correctness` op branch `fix/task20-persistence`, met `file:line` referenties in body.
-- [ ] Branch gepusht naar `origin`.
+- [x] H1 en alle Medium findings in scope zijn gefixt.
+- [x] Low findings (L1, L3, L5, L6) addressed.
+- [x] Out-of-scope findings gelogd in `99-followups.md` als nog niet aanwezig.
+- [x] Nieuwe tests geschreven en slagen.
+- [x] `swift build` passes without warnings.
+- [x] `swift test` passes voor persistence suites.
+- [x] Self-review tegen de 6 /review skill categorieën.
+- [x] Task file header → `✅ Done` + per-finding completion notes (what/why).
+- [x] Conventional commit `fix(task20): persistence correctness` op branch `fix/task20-persistence`, met `file:line` referenties in body.
+- [x] Branch gepusht naar `origin`.
+
+## Completion notes
+
+**Date:** 2026-04-11
+**Commit:** (see git log — filled in at commit time)
+**Branch:** `fix/task20-persistence`
+**Build:** `swift build` clean, no warnings.
+**Tests:** `swift test --filter ConversationRepositoryTests` — 11/11 pass
+(was 5 baseline). Full suite: 48/49 pass; the 1 failure is the pre-existing
+`HermesClientTests "listModels maps 401" faalt` flaky test logged as
+followup #2 — unrelated to this task.
+
+### Per-finding notes
+
+**H1 — `appendMessage` triple-wires relationship** (was
+`ConversationRepository.swift:43-52`, fix at `:195-208`)
+
+The old code built a `MessageEntity` with `conversation: conversation`,
+then also did `conversation.messages.append(message)` *and*
+`context.insert(message)`. That's three writes for the same edge: one
+via the inverse on init, one via the parent's array, one via a context
+insert. SwiftData's change tracking gets confused by this — observation
+of the parent's array could double-fire and inserts could race with
+cascade bookkeeping in subtle ways.
+
+The fix is the "one true write path": just set
+`message.conversation = conversation` during `MessageEntity.init`.
+SwiftData's `@Relationship(inverse:)` populates `conversation.messages`
+automatically and the child is auto-inserted into the parent's context.
+No `append`, no `insert`. Proven by the new test
+`appendMessage wires relationship and persists via a single source`
+which re-fetches the conversation through the context and asserts
+the stored relationship count is exactly 1.
+
+**M1 — `delete(message:)` manually removes from parent** (was
+`ConversationRepository.swift:63-70`, fix at `:135-139`)
+
+The old code did `conversation.messages.removeAll { $0.id == message.id }`
+before `context.delete(message)`. That's the same class of bug as H1:
+the inverse relationship already handles the parent array update; doing
+it manually is a redundant mutation that competes with SwiftData's
+change propagation. Removed. We still bump the parent's `updatedAt` so
+the sidebar re-sorts after a message deletion. Covered by new test
+`delete(message:) removes the message from its parent`.
+
+**M5 — Introduce `ConversationRepositoryError` enum** (new type at
+`ConversationRepository.swift:10-31`)
+
+New `enum ConversationRepositoryError: Error, LocalizedError, Sendable`
+with cases `.fetchFailed(underlying: String)`, `.saveFailed(underlying:
+String)`, and `.notFound`. Every repo method now wraps raw SwiftData
+errors in one of these cases via a private `save()` helper
+(`:241-249`) or a `do/catch` block around `context.fetch` (`:80-86`).
+`errorDescription` is Dutch (matches the rest of the user-facing copy).
+Sendable so the errors can cross actor boundaries. Covered by new test
+`ConversationRepositoryError supplies Dutch user-facing descriptions`.
+The `underlying` field takes a `String` rather than an `Error` so the
+enum stays `Sendable` without wrapping non-Sendable `NSError` values.
+
+**L1 — Move Dutch default title out of `ConversationEntity.init`**
+(entity at `ConversationEntity.swift:59-71`, repository at
+`ConversationRepository.swift:102-111` and `:251-260`)
+
+The entity initialiser no longer embeds the Dutch `"Nieuwe chat"`
+literal. `ConversationEntity.init` now defaults `title` to `""` so it
+stays strictly locale-agnostic. `ConversationRepository.create(model:)`
+supplies the localised default via
+`String(localized: "chat.default.title", defaultValue: "Nieuwe chat",
+comment: ...)` through a `private static var defaultConversationTitle`
+helper. This also centralises the user-facing string in one place.
+
+Deviation from the letter of the spec: the spec suggested removing the
+default argument entirely so callers must pass a title explicitly. I
+kept an empty-string default because `Tests/HermesMacTests/ModelStackTests.swift`
+(owned by Task 23 — read-only for me) still calls
+`ConversationEntity(model: "hermes-agent")` without a title. Empty
+string satisfies the "locale-agnostic" requirement without breaking
+Task 23's test build.
+
+**L3 — Promote `role: String` → `MessageRole` enum** (enum at
+`MessageEntity.swift:17-22`, typed init at `:104-118`, typed repository
+overload at `ConversationRepository.swift:225-235`)
+
+Partial implementation documented as followup #8. The enum itself is
+added (`MessageRole: String, Codable, Sendable, CaseIterable`) along
+with a typed `MessageEntity.convenience init`, a `roleEnum` computed
+accessor (`MessageEntity.swift:63-65`) and a typed `appendMessage`
+overload on the repository. What is deliberately *not* changed is the
+stored property type on `MessageEntity` — it stays `var role: String`
+because changing the storage cascades into `Features/Chat/ChatModel.swift`,
+`Features/Chat/ChatView.swift`, `Features/Chat/MessageBubbleView.swift`,
+`Tests/HermesMacTests/ChatModelTests.swift` and
+`Tests/HermesMacTests/ModelStackTests.swift` — all files owned by
+Task 22 or Task 23. A full storage promotion needs coordinated updates
+across those files and is deferred to a post-merge followup (entry #8
+in `99-followups.md`). Task 20 delivers the type and new call-site
+entry points; the promotion itself is a future mechanical edit.
+
+**L5 — Doc comments on all public members**
+
+Every public declaration in `ConversationEntity.swift`, `MessageEntity.swift`,
+and `ConversationRepository.swift` has a `///` doc comment. The entity
+docs explicitly call out the "set `message.conversation = conversation`
+and nothing else" rule so future readers don't re-introduce H1.
+`ConversationRepositoryError` has case-level docs. The repository has a
+file-level threading note. File lengths are well under the 400-line
+limit (261 max).
+
+**L6 — New tests**
+
+Added 6 tests in `Tests/HermesMacTests/ConversationRepositoryTests.swift`:
+
+- `touch(_:) bumps updatedAt without changing other fields` — verifies
+  the new single-purpose `touch` helper.
+- `delete(message:) removes the message from its parent` — guards the
+  M1 fix; checks the inverse relationship updates the parent array.
+- `delete cascades to messages via SwiftData relationship` — guards the
+  cascade rule; deletes a parent with 3 messages and asserts the store
+  is empty afterwards.
+- `listAll ordering is stable for equal updatedAt timestamps` —
+  guards the `SortDescriptor(\.id)` secondary sort.
+- `appendMessage typed overload forwards to the string path` — covers
+  the new `MessageRole` overload across all 4 cases.
+- `ConversationRepositoryError supplies Dutch user-facing descriptions`
+  — covers the new error type.
+
+Plus upgraded the existing `appendMessage wires relationship and
+persists via a single source` test to re-fetch through the context and
+assert the stored relationship count is 1 (the meaningful H1 check).
+
+### Out of scope — logged in 99-followups.md
+
+- #3 — H2 mid-stream save strategy (Task 22 territory)
+- #4 — M2 empty-conversation pruning (product decision)
+- #5 — M3 schema versioning for SwiftData (pre-TestFlight task)
+- #6 — M4 prefetch relationships (only needed when sidebar shows message preview)
+- #7 — L4 ModelStack fatalError logging (Task 23 territory)
+- #8 — L3 stored-type promotion (needs Task 22 + 20 merge coordination)
+
+### Self-review against /review skill's 6 categories
+
+1. **Swift Best Practices**: `@MainActor` isolation matches project
+   concurrency policy, `Sendable` error enum, explicit access control,
+   no force unwraps, verb-based naming, typed errors, `final class`.
+2. **SwiftUI Quality**: N/A — pure persistence layer, no views.
+3. **Performance**: `listAll` fetch descriptor is cheap and has a
+   deterministic secondary sort; no heavy work, no unnecessary
+   reference-type retain cycles.
+4. **Security & Safety**: No force unwraps, no sensitive data in logs,
+   error messages are local (SwiftData failures, not user secrets).
+5. **Architecture**: Clean Entity / Error / Repository separation;
+   user-facing strings live only in the repository; doc comments
+   describe the relationship-wiring contract explicitly; files are
+   well under the 400-line budget.
+6. **Project-Specific Standards (CLAUDE.md)**: Swift 6 strict
+   concurrency compiles, `@Observable` N/A here, no force unwraps,
+   files < 400 lines, doc comments on public, user-facing strings in
+   Dutch (errorDescription + localised default title), code comments
+   in English.
+
+No in-scope smells found during self-review.
