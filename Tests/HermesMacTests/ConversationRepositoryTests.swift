@@ -215,6 +215,36 @@ struct ConversationRepositoryTests {
         #expect(conv.createdAt == originalCreatedAt)
     }
 
+    // MARK: - Prune empty
+
+    @Test("pruneEmpty removes empty conversations except the excluded one")
+    func pruneEmptyRemovesEmptyConversations() throws {
+        let (repo, _) = try makeRepo()
+
+        // Create three conversations: one with messages, two empty.
+        let withMessages = try repo.create(model: "hermes-agent")
+        try repo.appendMessage(role: .user, content: "hello", to: withMessages)
+
+        let emptyKept = try repo.create(model: "hermes-agent")
+        let emptyRemoved = try repo.create(model: "hermes-agent")
+
+        #expect(try repo.listAll().count == 3)
+
+        // Prune, excluding emptyKept.
+        repo.pruneEmpty(excluding: emptyKept.id)
+
+        let remaining = try repo.listAll()
+        let remainingIDs = Set(remaining.map(\.id))
+
+        // The conversation with messages survives.
+        #expect(remainingIDs.contains(withMessages.id))
+        // The excluded empty conversation survives.
+        #expect(remainingIDs.contains(emptyKept.id))
+        // The other empty conversation is deleted.
+        #expect(!remainingIDs.contains(emptyRemoved.id))
+        #expect(remaining.count == 2)
+    }
+
     // MARK: - Error wrapping
 
     @Test("ConversationRepositoryError supplies Dutch user-facing descriptions")
