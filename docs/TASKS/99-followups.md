@@ -74,7 +74,9 @@ we pre-TestFlight zijn (schema kan vrij veranderen), maar voor de
 eerste externe build moet er een `Schema`/`SchemaMigrationPlan` staan
 met explicit versies.
 
-Status: open (doen vóór eerste TestFlight build)
+Status: done — afgesloten door task 25. `SchemaV1` (VersionedSchema) en
+`HermesMigrationPlan` (SchemaMigrationPlan) zijn toegevoegd in `ModelStack.swift`.
+Container bouwt nu via het versioned schema path met lege migration stages als baseline.
 
 ---
 

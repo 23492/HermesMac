@@ -38,4 +38,18 @@ struct ModelStackTests {
 
         #expect(try ctx.fetch(FetchDescriptor<MessageEntity>()).isEmpty)
     }
+
+    @Test("versioned schema builds with correct identifier and model list")
+    func versionedSchemaBuilds() throws {
+        #expect(SchemaV1.versionIdentifier == Schema.Version(1, 0, 0))
+        #expect(SchemaV1.models.count == 2)
+
+        // Migration plan references SchemaV1 with no stages
+        #expect(HermesMigrationPlan.schemas.count == 1)
+        #expect(HermesMigrationPlan.stages.isEmpty)
+
+        // Container builds successfully with the versioned schema
+        let container = try ModelStack.makeInMemoryContainer()
+        #expect(container.schema.entities.count >= 2)
+    }
 }
