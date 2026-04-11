@@ -14,6 +14,12 @@ public struct ConversationListView: View {
     var onNewChat: () -> Void
     var onDelete: (ConversationEntity) -> Void
 
+    #if os(iOS)
+    /// Drives the iOS settings sheet. On macOS settings live in their
+    /// own `Settings` scene (Cmd+,), so this state is unused there.
+    @State private var showSettings = false
+    #endif
+
     public init(
         conversations: [ConversationEntity],
         selectedID: Binding<UUID?>,
@@ -70,10 +76,29 @@ public struct ConversationListView: View {
         }
         .navigationTitle("Hermes")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Label("Instellingen", systemImage: "gearshape")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onNewChat) {
                     Label("Nieuwe chat", systemImage: "plus")
                 }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Klaar") {
+                                showSettings = false
+                            }
+                        }
+                    }
             }
         }
     }

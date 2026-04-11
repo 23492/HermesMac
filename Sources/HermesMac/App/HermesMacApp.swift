@@ -16,5 +16,15 @@ struct HermesMacApp: App {
             HermesMacCommands()
         }
         #endif
+
+        // macOS Settings scene. SwiftUI wires this up to the standard
+        // "HermesMac → Instellingen…" menu item and the Cmd+, shortcut
+        // automatically, so we don't need a custom CommandGroup for it.
+        #if os(macOS)
+        Settings {
+            SettingsView()
+                .environment(AppSettings.shared)
+        }
+        #endif
     }
 }
