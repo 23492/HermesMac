@@ -226,3 +226,25 @@ voedt die nu aan `SSELineStream` in plaats van `bytes.lines`
 Status: done — gefixt in task 19
 
 ---
+
+## 14. [2026-04-11 task-20] `MessageEntity.role` storage-type promotie naar enum
+
+Uit code review 2026-04-11 (Persistence L3). Task 20 heeft de `MessageRole`
+enum toegevoegd plus een typed convenience overload op
+`ConversationRepository.appendMessage` én een typed `init` op
+`MessageEntity`, maar de opgeslagen property blijft voorlopig `String`
+omdat een volledige promotie cascadeert in files buiten task 20's
+ownership (`Features/Chat/ChatModel.swift` + `ChatView.swift` +
+`MessageBubbleView.swift` doen string-compares `message.role ==
+"assistant"`, en `Tests/HermesMacTests/ChatModelTests.swift` +
+`ModelStackTests.swift` initialiseren met raw strings).
+
+Voorstel: na de merge van tasks 20 en 22, in een volgende followup-task
+de Features/Chat vergelijkingen omzetten naar `message.roleEnum == .user`
+etc., de `appendMessage` call sites naar de typed overload, en dan pas
+de stored property op `MessageEntity` promoten naar `MessageRole`.
+Pre-release dus geen migratie nodig, wel een paar mechanical edits.
+
+Status: open (wacht op merge task 22 + 20)
+
+---
