@@ -269,7 +269,14 @@ Mogelijk dezelfde root cause als followup #2, of aparte test fixture issue.
 Verifieer na Task 19 merge of dit nog optreedt; zo ja, debug in een aparte
 task.
 
-Status: open
+Status: done — afgesloten door task 30 (analyse). Task 19 heeft de volledige
+data pipeline herschreven en de NSDictionary-path geëlimineerd:
+- Test fixtures gebruiken uitsluitend `Data("""...""".utf8)` literals (pure Swift Data)
+- `MockURLProtocol` ontvangt en levert raw `Data` — geen JSON deserialisatie
+- `HermesClient.listModels()` decodeert via `JSONDecoder.decode(_:from:)` op raw `Data`
+- Er is nergens in de codebase `JSONSerialization` of `NSDictionary` gebruik
+De crash-path (NSDictionary bridging naar Swift Dictionary over concurrency
+grenzen) bestaat niet meer. Geen codewijziging nodig.
 
 ---
 
