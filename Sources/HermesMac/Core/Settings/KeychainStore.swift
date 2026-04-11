@@ -47,7 +47,16 @@ public struct KeychainStore: Sendable {
     /// - Parameter service: A unique reverse-DNS string, typically shared
     ///   across the whole app (e.g. `"com.hermesmac.credentials"`).
     public init(service: String) {
+        // macOS SPM executables have no entitlements file, so the data
+        // protection keychain (kSecUseDataProtectionKeychain) is not
+        // accessible. Fall back to the login keychain which works without
+        // entitlements and is still secure for a non-sandboxed desktop app.
+        // iOS always uses the data protection keychain.
+        #if os(macOS)
+        self.init(service: service, useDataProtectionKeychain: false)
+        #else
         self.init(service: service, useDataProtectionKeychain: true)
+        #endif
     }
 
     /// Dependency-injection initializer for tests.
