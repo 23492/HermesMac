@@ -3,9 +3,9 @@ import SwiftData
 
 /// Typed set of roles a message can have in a chat conversation.
 ///
-/// Uses `String` as the raw value so SwiftData can store it transparently and
-/// so existing call sites can still interop with OpenAI-style role strings on
-/// the wire.
+/// Uses `String` as the raw value so SwiftData can persist it transparently
+/// (the raw value is what ends up in the store) and so interop with
+/// OpenAI-style role strings on the wire remains trivial via ``rawValue``.
 ///
 /// - `user`: A message the human typed.
 /// - `assistant`: A reply produced by the model (including mid-stream
@@ -33,14 +33,12 @@ public final class MessageEntity {
     /// Stable identifier for the message.
     @Attribute(.unique) public var id: UUID
 
-    /// Raw role string as sent to / received from the backend (OpenAI
-    /// chat-completions compatible: `"user"`, `"assistant"`, `"system"`,
-    /// `"tool"`).
+    /// The role of this message in the conversation.
     ///
-    /// This is stored as `String` for forward compatibility with the rest of
-    /// the app — which still talks to the chat-completions API in strings —
-    /// but typed access is available via ``roleEnum``.
-    public var role: String
+    /// Stored as a ``MessageRole`` enum. SwiftData persists the raw `String`
+    /// value transparently because `MessageRole` is `RawRepresentable` with
+    /// a `Codable` raw type.
+    public var role: MessageRole
 
     /// Raw text content of the message. For streamed assistant messages this
     /// grows over time as chunks are appended.
@@ -57,19 +55,15 @@ public final class MessageEntity {
     /// the message goes away when the parent conversation is deleted.
     public var conversation: ConversationEntity?
 
-    /// Typed accessor over ``role``. Returns `nil` when the stored string
-    /// value is not one of the known ``MessageRole`` cases — callers should
-    /// still be defensive because the underlying storage is a plain string.
-    public var roleEnum: MessageRole? {
-        MessageRole(rawValue: role)
-    }
-
     /// Creates a new message entity with a raw-string role.
+    ///
+    /// The string is converted to ``MessageRole`` via its raw value.
+    /// Unknown strings fall back to ``MessageRole/user`` for safety.
     ///
     /// - Parameters:
     ///   - id: Stable identifier. Defaults to a fresh `UUID`.
-    ///   - role: Role string (use a ``MessageRole`` raw value where
-    ///     possible).
+    ///   - role: Role string. Converted to ``MessageRole`` using
+    ///     `MessageRole(rawValue:)` with a `.user` fallback.
     ///   - content: Message body. May be empty — e.g. for a placeholder that
     ///     will be filled in by streaming.
     ///   - createdAt: Creation timestamp. Defaults to `Date()`.
@@ -84,7 +78,7 @@ public final class MessageEntity {
         conversation: ConversationEntity? = nil
     ) {
         self.id = id
-        self.role = role
+        self.role = MessageRole(rawValue: role) ?? .user
         self.content = content
         self.createdAt = createdAt
         self.conversation = conversation

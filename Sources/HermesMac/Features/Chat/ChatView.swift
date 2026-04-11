@@ -158,7 +158,7 @@ public struct ChatView: View {
     /// ``ChatModel/regenerate()`` always replaces the tail of the
     /// conversation. Hiding the menu item elsewhere keeps the UI honest.
     private func canRegenerate(_ message: MessageEntity, in model: ChatModel) -> Bool {
-        guard message.role == "assistant" else { return false }
+        guard message.role == .assistant else { return false }
         return model.messages.last?.id == message.id
     }
 

@@ -191,38 +191,7 @@ public final class ConversationRepository {
     /// sidebar re-sorts.
     ///
     /// - Parameters:
-    ///   - role: Raw role string (use a ``MessageRole`` raw value where
-    ///     possible, or see the typed overload).
-    ///   - content: Message body.
-    ///   - conversation: The parent conversation.
-    /// - Returns: The newly created message.
-    /// - Throws: ``ConversationRepositoryError/saveFailed(underlying:)``
-    ///   when the save fails.
-    @discardableResult
-    public func appendMessage(
-        role: String,
-        content: String,
-        to conversation: ConversationEntity
-    ) throws -> MessageEntity {
-        let message = MessageEntity(
-            role: role,
-            content: content,
-            conversation: conversation
-        )
-        conversation.updatedAt = Date()
-        try save()
-        return message
-    }
-
-    /// Typed overload of ``appendMessage(role:content:to:)-(String,_,_)`` that
-    /// takes a ``MessageRole`` directly.
-    ///
-    /// Prefer this at call sites that know the role at compile time — it
-    /// removes a class of typo bugs like `"usser"` that the string-based
-    /// overload cannot catch.
-    ///
-    /// - Parameters:
-    ///   - role: Typed role.
+    ///   - role: Typed message role.
     ///   - content: Message body.
     ///   - conversation: The parent conversation.
     /// - Returns: The newly created message.
@@ -234,11 +203,14 @@ public final class ConversationRepository {
         content: String,
         to conversation: ConversationEntity
     ) throws -> MessageEntity {
-        try appendMessage(
-            role: role.rawValue,
+        let message = MessageEntity(
+            role: role,
             content: content,
-            to: conversation
+            conversation: conversation
         )
+        conversation.updatedAt = Date()
+        try save()
+        return message
     }
 
     // MARK: - Pruning

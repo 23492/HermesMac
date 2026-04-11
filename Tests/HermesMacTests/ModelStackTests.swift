@@ -26,7 +26,7 @@ struct ModelStackTests {
         let ctx = ModelContext(container)
 
         let conv = ConversationEntity(model: "hermes-agent")
-        let msg = MessageEntity(role: "user", content: "hi", conversation: conv)
+        let msg = MessageEntity(role: .user, content: "hi", conversation: conv)
         conv.messages.append(msg)
         ctx.insert(conv)
         try ctx.save()

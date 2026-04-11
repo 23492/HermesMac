@@ -78,9 +78,9 @@ struct ChatModelTests {
         model.send()
 
         #expect(model.messages.count == 2)
-        #expect(model.messages[0].role == "user")
+        #expect(model.messages[0].role == .user)
         #expect(model.messages[0].content == "Hallo wereld")
-        #expect(model.messages[1].role == "assistant")
+        #expect(model.messages[1].role == .assistant)
         #expect(model.messages[1].content == "")
         #expect(model.inputText == "")
     }
@@ -146,7 +146,7 @@ struct ChatModelTests {
     @Test("deleteMessage removes message from list")
     func deleteMessage() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        let msg = try repo.appendMessage(role: "user", content: "to delete", to: conv)
+        let msg = try repo.appendMessage(role: .user, content: "to delete", to: conv)
         let model = ChatModel(
             conversation: conv,
             client: client,
@@ -164,7 +164,7 @@ struct ChatModelTests {
     @Test("regenerate does nothing without assistant message")
     func regenerateNoAssistant() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let model = ChatModel(
             conversation: conv,
             client: client,
@@ -183,9 +183,9 @@ struct ChatModelTests {
     @Test("regenerate replaces last assistant message and restarts streaming")
     func regenerateReplacesTail() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let oldAssistant = try repo.appendMessage(
-            role: "assistant",
+            role: .assistant,
             content: "old reply",
             to: conv
         )
@@ -204,7 +204,7 @@ struct ChatModelTests {
         // Old assistant is gone, new empty placeholder is appended
         #expect(model.messages.count == 2)
         #expect(model.messages.last?.id != oldAssistant.id)
-        #expect(model.messages.last?.role == "assistant")
+        #expect(model.messages.last?.role == .assistant)
         #expect(model.messages.last?.content == "")
         #expect(model.isStreaming == true)
     }
@@ -256,7 +256,7 @@ struct ChatModelTests {
     @Test("retry after failure re-runs streaming from user tail")
     func retryAfterFailure() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let model = ChatModel(
             conversation: conv,
             client: client,
@@ -273,16 +273,16 @@ struct ChatModelTests {
         // Error cleared, assistant placeholder appended, streaming on
         #expect(model.chatError == nil)
         #expect(model.messages.count == 2)
-        #expect(model.messages.last?.role == "assistant")
+        #expect(model.messages.last?.role == .assistant)
         #expect(model.isStreaming == true)
     }
 
     @Test("retry drops partial assistant reply before re-streaming")
     func retryDropsPartialAssistant() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let partial = try repo.appendMessage(
-            role: "assistant",
+            role: .assistant,
             content: "half an answer...",
             to: conv
         )
@@ -303,7 +303,7 @@ struct ChatModelTests {
         // its place
         #expect(model.messages.count == 2)
         #expect(model.messages.last?.id != partial.id)
-        #expect(model.messages.last?.role == "assistant")
+        #expect(model.messages.last?.role == .assistant)
         #expect(model.messages.last?.content == "")
         #expect(model.isStreaming == true)
     }
@@ -311,7 +311,7 @@ struct ChatModelTests {
     @Test("retry on .notConfigured is a no-op: it needs settings")
     func retryNotConfiguredIsNoop() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let model = ChatModel(
             conversation: conv,
             client: client,
@@ -347,7 +347,7 @@ struct ChatModelTests {
     @Test("retry on .authentication is a no-op: it needs settings")
     func retryAuthenticationIsNoop() throws {
         let (conv, client, settings, repo) = try makeDependencies()
-        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        _ = try repo.appendMessage(role: .user, content: "hi", to: conv)
         let model = ChatModel(
             conversation: conv,
             client: client,

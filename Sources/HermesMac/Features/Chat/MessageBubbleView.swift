@@ -46,7 +46,7 @@ public struct MessageBubbleView: View {
         self.onRegenerate = onRegenerate
     }
 
-    private var isUser: Bool { message.role == "user" }
+    private var isUser: Bool { message.role == .user }
 
     /// `true` while an assistant placeholder has no content yet — the
     /// streaming response hasn't emitted its first chunk. Drives the

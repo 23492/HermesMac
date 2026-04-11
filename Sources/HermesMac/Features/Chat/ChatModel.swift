@@ -129,7 +129,7 @@ public final class ChatModel {
         let userMessage: MessageEntity
         do {
             userMessage = try repository.appendMessage(
-                role: "user",
+                role: .user,
                 content: text,
                 to: conversation
             )
@@ -156,10 +156,10 @@ public final class ChatModel {
     /// stream is already active.
     public func regenerate() {
         guard !isStreaming else { return }
-        guard let lastAssistant = messages.last, lastAssistant.role == "assistant" else {
+        guard let lastAssistant = messages.last, lastAssistant.role == .assistant else {
             return
         }
-        guard messages.count >= 2, messages[messages.count - 2].role == "user" else {
+        guard messages.count >= 2, messages[messages.count - 2].role == .user else {
             return
         }
 
@@ -195,7 +195,7 @@ public final class ChatModel {
         // Drop any trailing assistant message — could be an empty
         // placeholder the failure path already removed, or a partial
         // reply from a .streamInterrupted case.
-        if let last = messages.last, last.role == "assistant" {
+        if let last = messages.last, last.role == .assistant {
             do {
                 try repository.delete(message: last)
                 messages.removeAll { $0.id == last.id }
@@ -208,7 +208,7 @@ public final class ChatModel {
         }
 
         // We need a user message to regenerate from
-        guard messages.last?.role == "user" else {
+        guard messages.last?.role == .user else {
             chatError = .other("Geen bericht om opnieuw te proberen.")
             return
         }
@@ -280,7 +280,7 @@ public final class ChatModel {
         let assistantMessage: MessageEntity
         do {
             assistantMessage = try repository.appendMessage(
-                role: "assistant",
+                role: .assistant,
                 content: "",
                 to: conversation
             )
@@ -317,7 +317,7 @@ public final class ChatModel {
         // Build message history (exclude the empty assistant placeholder)
         let history = messages
             .filter { $0.id != assistantMessage.id }
-            .map { ChatMessage(role: $0.role, content: $0.content) }
+            .map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
 
         let request = ChatCompletionRequest(
             model: conversation.model,

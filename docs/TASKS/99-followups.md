@@ -269,7 +269,13 @@ etc., de `appendMessage` call sites naar de typed overload, en dan pas
 de stored property op `MessageEntity` promoten naar `MessageRole`.
 Pre-release dus geen migratie nodig, wel een paar mechanical edits.
 
-Status: open (wacht op merge task 22 + 20)
+Status: done — afgesloten door task 33 (fix/task33-role-enum). `MessageEntity.role` is
+gepromoveerd van `String` naar `MessageRole`. Alle string-based role vergelijkingen
+(`role == "user"`, `role == "assistant"`) zijn vervangen door enum vergelijkingen
+(`role == .user`, `role == .assistant`). De string-based `appendMessage(role: String, ...)`
+overload op `ConversationRepository` is verwijderd; enkel de typed
+`appendMessage(role: MessageRole, ...)` variant resteert. `roleEnum` computed property
+is verwijderd (overbodig nu `role` zelf het enum is). Alle tests bijgewerkt.
 
 ---
 

@@ -142,8 +142,7 @@ struct ConversationRepositoryTests {
 
         let msg = try repo.appendMessage(role: .user, content: "hi there", to: conv)
 
-        #expect(msg.role == MessageRole.user.rawValue)
-        #expect(msg.roleEnum == .user)
+        #expect(msg.role == .user)
         #expect(msg.content == "hi there")
         #expect(msg.conversation?.id == conv.id)
         #expect(conv.messages.count == 1)
@@ -161,7 +160,7 @@ struct ConversationRepositoryTests {
         #expect(fetched.first?.messages.first?.id == msg.id)
     }
 
-    @Test("appendMessage typed overload forwards to the string path")
+    @Test("appendMessage stores typed MessageRole values for all cases")
     func appendMessageTypedOverload() throws {
         let (repo, _) = try makeRepo()
 
@@ -172,10 +171,10 @@ struct ConversationRepositoryTests {
         let systemMsg = try repo.appendMessage(role: .system, content: "s", to: conv)
         let toolMsg = try repo.appendMessage(role: .tool, content: "t", to: conv)
 
-        #expect(userMsg.role == "user")
-        #expect(assistantMsg.role == "assistant")
-        #expect(systemMsg.role == "system")
-        #expect(toolMsg.role == "tool")
+        #expect(userMsg.role == .user)
+        #expect(assistantMsg.role == .assistant)
+        #expect(systemMsg.role == .system)
+        #expect(toolMsg.role == .tool)
         #expect(conv.messages.count == 4)
     }
 
