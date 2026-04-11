@@ -12,7 +12,7 @@ import os
 /// ``HermesMigrationPlan``.
 public enum SchemaV1: VersionedSchema {
     /// Semantic version tag for this schema revision.
-    public static var versionIdentifier = Schema.Version(1, 0, 0)
+    public static let versionIdentifier = Schema.Version(1, 0, 0)
 
     /// All persistent model types included in this schema version.
     public static var models: [any PersistentModel.Type] {
