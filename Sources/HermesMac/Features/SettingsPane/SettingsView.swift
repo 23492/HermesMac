@@ -70,9 +70,9 @@ public struct SettingsView: View {
             HStack {
                 Group {
                     if showAPIKey {
-                        TextField(String(localized: "settings.apiKey.placeholder", defaultValue: "Bearer token"), text: apiKeyBinding)
+                        TextField("Bearer token", text: apiKeyBinding)
                     } else {
-                        SecureField(String(localized: "settings.apiKey.placeholder", defaultValue: "Bearer token"), text: apiKeyBinding)
+                        SecureField("Bearer token", text: apiKeyBinding)
                     }
                 }
                 #if os(iOS)

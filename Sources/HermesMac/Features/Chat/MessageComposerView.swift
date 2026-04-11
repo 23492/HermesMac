@@ -31,7 +31,7 @@ public struct MessageComposerView: View {
             Divider()
 
             HStack(alignment: .bottom, spacing: 8) {
-                TextField(String(localized: "composer.placeholder", defaultValue: "Bericht..."), text: $text, axis: .vertical)
+                TextField("Bericht...", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...8)
                     .padding(8)
