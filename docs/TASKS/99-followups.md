@@ -43,10 +43,11 @@ controleren en bij non-2xx `HermesError.httpStatus(code, body)` gooien voordat
 er gedecodeerd wordt. Waarschijnlijk dezelfde check die al in de streaming
 chat path zit missen hier.
 
-Status: done (afgesloten door task 19 H3 — `HermesClient.streamChatCompletion`
-drained nu tot 4 KB van error bodies en de gedeelde `httpStatus` pad werkt
-voor zowel listModels als streaming; zie branch `fix/task19-networking`
-commit `816c5ad`)
+Status: done — afgesloten door task 19 (fix/task19-networking). `HermesClient.listModels`
+roept nu `validate(response:body:)` aan vóór decodering (`HermesClient.swift:81`),
+en de streaming path drained de error body via `drainErrorBody` (`HermesClient.swift:141`).
+De regression test `httpError401` (`HermesClientTests.swift:52`) én de nieuwe
+`streaming401` (`HermesClientTests.swift:290`) lopen beide groen.
 
 ---
 
@@ -180,3 +181,48 @@ parallellisme veilig is (zero file overlap + geen API dependency tussen
 tasks).
 
 Status: open
+
+---
+
+## 12. [2026-04-11 task-19] Cross-boundary `ChatModel.swift` fix voor nieuwe `HermesError.inStream` case
+
+Task 19 voegt `HermesError.inStream(String)` toe (H1 + L4). De bestaande
+`switch` in `ChatModel.swift` (eigendom van task 22) was niet exhaustive en
+weigerde daarom te compileren. Zonder een minimale patch daar kan task 19
+überhaupt niet groen builden, dus is één nieuwe case toegevoegd in
+`ChatModel.swift` (zie `ChatModel.swift:~/handleError`) die de in-stream
+error op dezelfde manier afhandelt als een stream interruptie zodra er al
+partial content is, en anders als `.other(message)` surface't. Dat valt
+qua UX precies in wat task 22 al doet voor andere mid-stream fouten.
+
+Follow-up voor task 22: als de chat UX voor in-stream errors verfijnder moet
+worden (bv. een aparte banner of label dat het over een server-side error
+gaat in plaats van een netwerk drop), pak die hier op. De huidige mapping
+is een veilige default, geen permanent ontwerp.
+
+Status: open (task 22 verantwoordelijkheid)
+
+---
+
+## 13. [2026-04-11 task-19] Pre-existing bug: `URLSession.bytes.lines` slikt blank-line SSE delimiters
+
+Tijdens het schrijven van de streaming tests (H4) kwam een niet eerder
+opgemerkte bug naar boven in de oude `HermesClient.streamChatCompletion`
+implementatie: de code voedde `bytes.lines` (a.k.a. `AsyncLineSequence`)
+direct aan de SSE parser, maar `AsyncLineSequence` **collapseert**
+opeenvolgende newlines en verwijdert zo precies de lege regels die SSE als
+event separator gebruikt. Gevolg: een real-backend stream met meerdere
+frames zou door de parser lopen tot `\n\n` EOF, waarna alle frames als één
+blok gedecodeerd zouden worden — en vervolgens crashen met "Unexpected
+character '[' after top-level value". Dat dit in productie nooit zichtbaar
+werd komt omdat task 10 géén streaming integration test had (vandaar H4).
+
+Fix zit in task 19: nieuwe type `SSEByteLineSequence` (`SSELineStream.swift:172`)
+split de raw byte stream zelf op `\n` en *behoudt* lege regels. `HermesClient`
+voedt die nu aan `SSELineStream` in plaats van `bytes.lines`
+(`HermesClient.swift:194`). Unit tests voor de byte splitter staan in
+`SSEParserTests.swift` onder `@Suite("SSEByteLineSequence")`.
+
+Status: done — gefixt in task 19
+
+---
