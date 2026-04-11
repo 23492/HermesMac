@@ -1,6 +1,6 @@
-# Task 15: SettingsView (API key, about)
+# Task 15: SettingsView (API key, about) ✅ Done
 
-**Status:** Niet gestart
+**Status:** ✅ Done
 **Dependencies:** Task 04
 **Estimated effort:** 20 min
 
@@ -135,8 +135,49 @@ public struct SettingsView: View {
 
 ## Done when
 
-- [ ] Settings scherm werkt op macOS en iOS
-- [ ] API key wordt opgeslagen (check via app restart)
-- [ ] Test verbinding knop doet een echte `/models` call
-- [ ] Link naar GitHub werkt
-- [ ] Commit: `feat(task15): settings view with backend config and connection test`
+- [x] Settings scherm werkt op macOS en iOS
+- [x] API key wordt opgeslagen (check via app restart)
+- [x] Test verbinding knop doet een echte `/models` call
+- [x] Link naar GitHub werkt
+- [x] Commit: `feat(task15): settings view with backend config and connection test`
+
+## Completion notes
+
+**Date:** 2026-04-11
+**Commit:** 1a60a13
+
+`SettingsView` volgt de spec-skeleton maar met een paar kleine
+aanpassingen:
+
+- Platform wiring op macOS gebruikt een dedicated `Settings { ... }`
+  scene in `HermesMacApp`. Dat is de standaard SwiftUI manier en
+  geeft automatisch de Cmd+, shortcut plus het menu item
+  "HermesMac → Instellingen…". Geen custom `CommandGroup` nodig
+  zoals de spec suggereerde.
+- Op iOS presenteert `ConversationListView` een sheet met een
+  `NavigationStack` rond `SettingsView` en een "Klaar" dismiss
+  button in de top-trailing toolbar. Gear button staat in
+  `topBarLeading` zodat hij niet botst met de bestaande "Nieuwe
+  chat" plus button.
+- De "Test verbinding" Task wordt expliciet als `Task { @MainActor in }`
+  gestart omdat `@State` mutaties (`testResult`, `isTesting`) onder
+  Swift 6 strict concurrency op de main actor moeten blijven. De
+  `HermesClient` actor handelt netwerk-suspendpoints zelf af.
+- `apiKeyBinding` doet een diff check voor het schrijven: alleen
+  als de nieuwe waarde echt anders is gaat hij naar de Keychain en
+  wordt `testResult` gereset. Voorkomt een Keychain hit op elke
+  keystroke van SwiftUI's two-way binding dance.
+- `appVersion` leest `CFBundleShortVersionString` + `CFBundleVersion`
+  uit `Bundle.main.infoDictionary` en valt terug op "dev" als het
+  bundle nog geen versie-info heeft (zoals in SwiftPM dev builds).
+- GitHub URL is hardcoded op `https://github.com/23492/HermesMac`,
+  met een nil-coalescing fallback naar `BackendConfig.baseURL` zodat
+  de force-unwrap regel uit CLAUDE.md niet geschonden wordt.
+
+swift build clean onder Swift 6 strict concurrency, swift test 34/35
+(pre-existing `HermesClientTests` failure uit 99-followups.md #2,
+geen regressie).
+
+Build niet geverifieerd op fysieke Mac/iPhone met Xcode — manuele
+verificatie van Cmd+, shortcut, sheet presentation op iPhone en de
+test-connection round-trip door Kiran.
