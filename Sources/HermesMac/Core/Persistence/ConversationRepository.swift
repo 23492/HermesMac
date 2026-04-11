@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SwiftData
 
 /// Typed errors thrown by ``ConversationRepository``.
@@ -46,6 +47,12 @@ public enum ConversationRepositoryError: Error, LocalizedError, Sendable {
 /// background queue.
 @MainActor
 public final class ConversationRepository {
+
+    /// Subsystem/category used for repository-level logging.
+    private static let logger = Logger(
+        subsystem: "com.hermes.mac",
+        category: "conversation-repository"
+    )
 
     /// The SwiftData model context this repository writes into.
     private let context: ModelContext
@@ -232,6 +239,33 @@ public final class ConversationRepository {
             content: content,
             to: conversation
         )
+    }
+
+    // MARK: - Pruning
+
+    /// Deletes all conversations with zero messages, excluding the given ID.
+    ///
+    /// Intended to be called right after creating a new chat so stale empty
+    /// conversations don't pile up in the sidebar. The excluded ID is
+    /// typically the just-created conversation that should survive.
+    ///
+    /// Errors are logged but never thrown — pruning is best-effort
+    /// housekeeping that must not block the caller or surface an alert.
+    ///
+    /// - Parameter id: The conversation ID to keep even if it has no messages.
+    public func pruneEmpty(excluding id: UUID) {
+        do {
+            let all = try context.fetch(FetchDescriptor<ConversationEntity>())
+            let empties = all.filter { $0.messages.isEmpty && $0.id != id }
+            for conversation in empties {
+                context.delete(conversation)
+            }
+            try context.save()
+        } catch {
+            Self.logger.error(
+                "pruneEmpty failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 
     // MARK: - Private helpers

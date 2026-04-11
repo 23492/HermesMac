@@ -179,6 +179,7 @@ public struct RootView: View {
         let repo = ConversationRepository(context: modelContext)
         do {
             let conversation = try repo.create(model: settings.selectedModel)
+            repo.pruneEmpty(excluding: conversation.id)
             #if os(iOS)
             navigationPath = [conversation.id]
             selectedConversation = conversation

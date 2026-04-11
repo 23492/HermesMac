@@ -86,7 +86,7 @@ chat" drukt zonder iets te typen. Moet een product beslissing worden:
 alleen opslaan op eerste user message? prunen bij app start? verbergen
 tot er tenminste één message is?
 
-Status: open (product decision)
+Status: done — implemented by task 29 (fix/task29-empty-chat-pruning). `ConversationRepository.pruneEmpty(excluding:)` deletes all empty conversations when a new chat is created, keeping the just-created one. Called from `RootView.createNewChat()`.
 
 ---
 
