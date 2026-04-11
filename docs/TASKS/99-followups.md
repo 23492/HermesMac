@@ -44,3 +44,18 @@ er gedecodeerd wordt. Waarschijnlijk dezelfde check die al in de streaming
 chat path zit missen hier.
 
 Status: open
+
+---
+
+## 3. [2026-04-11 task-23] Theme comment cleanup (L-Theme)
+
+Code review noemde als Low finding dat `DesignSystem/Theme.swift` een
+misleidende comment heeft over hoe kleuren uit de asset catalog komen.
+Deze file zit buiten de ownership van task 23 (`Features/...`, `App/...`,
+`Core/Persistence/ModelStack.swift`) en valt in de scope van task 24.
+
+Voorstel: comment bijwerken zodat hij exact beschrijft welke assets uit de
+asset catalog worden gelezen en in welke volgorde ze fallback bieden.
+Geen gedragsverandering.
+
+Status: open — ingepland voor task 24

@@ -64,6 +64,14 @@ struct HermesMacCommands: Commands {
     @FocusedValue(\.focusComposerAction) private var focusComposer
 
     var body: some Commands {
+        // `CommandGroupPlacement.newItem` targets only the "New" group
+        // of the File menu (New, New From…). It does **not** include
+        // "Close Window", which lives in `.saveItem` / `.textEditing`
+        // territory and is added automatically by AppKit for any
+        // window-backed scene. Replacing `.newItem` therefore leaves
+        // Cmd+W's "Close Window" entry intact. Verified by reading
+        // `CommandGroupPlacement` in Apple's SwiftUI headers and by
+        // launching the app — the "Sluit venster" item is still there.
         CommandGroup(replacing: .newItem) {
             Button("Nieuwe chat") {
                 newChat?()

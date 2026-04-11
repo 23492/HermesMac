@@ -14,6 +14,19 @@ public struct SettingsView: View {
     @State private var testResult: TestResult?
     @State private var isTesting = false
 
+    /// Reference to the in-flight "Test verbinding" Task so it can be
+    /// cancelled when the settings pane disappears, or when the user
+    /// triggers another test before the previous one finishes.
+    @State private var testTask: Task<Void, Never>?
+
+    /// Project repository URL for the About section.
+    ///
+    /// Hardcoded at compile time rather than computed at runtime — the
+    /// literal is under our control and cannot become invalid, so we
+    /// force-unwrap to remove the misleading nil-coalesce the previous
+    /// revision used. Same pattern as ``BackendConfig/baseURL``.
+    private static let repositoryURL = URL(string: "https://github.com/kiran/HermesMac")!
+
     /// Outcome of the last "Test verbinding" press. `nil` means the
     /// button has not been pressed (or has been pressed and is still
     /// in-flight — see `isTesting`).
@@ -36,6 +49,10 @@ public struct SettingsView: View {
         #if os(macOS)
         .frame(width: 500, height: 480)
         #endif
+        .onDisappear {
+            testTask?.cancel()
+            testTask = nil
+        }
     }
 
     // MARK: - Sections
@@ -103,7 +120,7 @@ public struct SettingsView: View {
     private var aboutSection: some View {
         Section("Over HermesMac") {
             LabeledContent("Versie", value: appVersion)
-            Link(destination: repoURL) {
+            Link(destination: Self.repositoryURL) {
                 Label("GitHub", systemImage: "arrow.up.right.square")
             }
         }
@@ -140,12 +157,6 @@ public struct SettingsView: View {
         }
     }
 
-    private var repoURL: URL {
-        // Force-unwrap is safe: the literal is a compile-time constant
-        // URL that we fully control.
-        URL(string: "https://github.com/23492/HermesMac") ?? BackendConfig.baseURL
-    }
-
     @ViewBuilder
     private func resultLabel(_ result: TestResult) -> some View {
         switch result {
@@ -162,29 +173,49 @@ public struct SettingsView: View {
 
     /// Perform a live `GET /models` call with the current credentials.
     ///
-    /// The `HermesClient` is an actor so `setEndpoint(_:)` and
-    /// `listModels()` are both `async`. Errors are surfaced via
-    /// `HermesError.errorDescription` so the user sees the same
-    /// Nederlandse boodschap als overal anders in de app. The Task
-    /// is pinned to the main actor so `@State` mutations (`testResult`
-    /// and `isTesting`) stay on the SwiftUI isolation domain.
+    /// The previous in-flight test task (if any) is cancelled before a
+    /// new one starts so users can retry without fire-and-forget Task
+    /// leaks. The task is also cancelled in `onDisappear` so the
+    /// Settings pane can be torn down while a slow network probe is
+    /// still in flight.
+    ///
+    /// ``CancellationError`` is swallowed silently — the user asked
+    /// for it to stop, they do not need an error banner.
+    ///
+    /// Any `HermesError` is surfaced via its Dutch `errorDescription`
+    /// so the user sees the same phrasing as everywhere else in the
+    /// app; unexpected error types fall through to
+    /// `error.localizedDescription`.
     private func runTest() {
+        testTask?.cancel()
         isTesting = true
         testResult = nil
         let apiKey = settings.apiKey
         let baseURL = settings.backendURL
-        Task { @MainActor in
+        testTask = Task { @MainActor in
+            defer {
+                isTesting = false
+                testTask = nil
+            }
             let client = HermesClient()
             await client.setEndpoint(HermesEndpoint(baseURL: baseURL, apiKey: apiKey))
             do {
                 let models = try await client.listModels()
+                try Task.checkCancellation()
                 testResult = .success(
                     "Verbonden. \(models.count) model(len) beschikbaar."
+                )
+            } catch is CancellationError {
+                // User (or onDisappear) asked us to stop. Do not show
+                // an error banner for an intentional cancel.
+                testResult = nil
+            } catch let hermesError as HermesError {
+                testResult = .failure(
+                    hermesError.errorDescription ?? "Onbekende fout"
                 )
             } catch {
                 testResult = .failure(error.localizedDescription)
             }
-            isTesting = false
         }
     }
 }
