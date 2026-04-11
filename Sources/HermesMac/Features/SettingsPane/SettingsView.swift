@@ -228,9 +228,9 @@ public struct SettingsView: View {
                 testTask = nil
             }
             let client = HermesClient()
-            await client.setEndpoint(HermesEndpoint(baseURL: baseURL, apiKey: apiKey))
+            let endpoint = HermesEndpoint(baseURL: baseURL, apiKey: apiKey)
             do {
-                let models = try await client.listModels()
+                let models = try await client.listModels(endpoint: endpoint)
                 try Task.checkCancellation()
                 testResult = .success(
                     "Verbonden. \(models.count) model(len) beschikbaar."

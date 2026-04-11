@@ -29,23 +29,15 @@ struct HermesClientTests {
             """.utf8)
         )
 
-        await client.setEndpoint(HermesEndpoint(
+        let endpoint = HermesEndpoint(
             baseURL: URL(string: "http://test.local/v1")!,
             apiKey: "secret"
-        ))
+        )
 
-        let models = try await client.listModels()
+        let models = try await client.listModels(endpoint: endpoint)
         #expect(models.count == 1)
         #expect(models[0].id == "hermes-agent")
         #expect(models[0].ownedBy == "hermes")
-    }
-
-    @Test("listModels throws HermesError.notAuthenticated when no endpoint set")
-    func notAuthenticated() async {
-        let client = makeClient()
-        await #expect(throws: HermesError.notAuthenticated) {
-            try await client.listModels()
-        }
     }
 
     @Test("listModels maps 401 to httpStatus error with body")
@@ -58,13 +50,13 @@ struct HermesClientTests {
             body: Data(#"{"error":{"message":"Invalid API key"}}"#.utf8)
         )
 
-        await client.setEndpoint(HermesEndpoint(
+        let endpoint = HermesEndpoint(
             baseURL: URL(string: "http://test.local/v1")!,
             apiKey: "wrong"
-        ))
+        )
 
         do {
-            _ = try await client.listModels()
+            _ = try await client.listModels(endpoint: endpoint)
             Issue.record("Expected error")
         } catch let error as HermesError {
             if case .httpStatus(let code, let body) = error {
@@ -91,9 +83,7 @@ struct HermesClientTests {
                 #"{"id":"1","choices":[{"delta":{"content":"Hi"},"finish_reason":null}]}"#
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
-
-        let stream = try await client.streamChatCompletion(request: Self.testRequest())
+        let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint())
         var collected: [String] = []
         for try await piece in stream {
             collected.append(piece)
@@ -115,9 +105,7 @@ struct HermesClientTests {
                 #"{"id":"1","choices":[{"delta":{"content":"ignored"},"finish_reason":null}]}"#
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
-
-        let stream = try await client.streamChatCompletion(request: Self.testRequest())
+        let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint())
         var collected: [String] = []
         for try await piece in stream {
             collected.append(piece)
@@ -139,9 +127,7 @@ struct HermesClientTests {
                 #"{"id":"1","choices":[{"delta":{"content":"ghost"},"finish_reason":null}]}"#
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
-
-        let stream = try await client.streamChatCompletion(request: Self.testRequest())
+        let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint())
         var collected: [String] = []
         for try await piece in stream {
             collected.append(piece)
@@ -166,11 +152,11 @@ struct HermesClientTests {
             ]),
             deliveryDelay: 0.25
         )
-        await client.setEndpoint(Self.testEndpoint())
+        let endpoint = Self.testEndpoint()
 
         let outerTask = Task { () -> Result<[String], Error> in
             do {
-                let stream = try await client.streamChatCompletion(request: Self.testRequest())
+                let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: endpoint)
                 var collected: [String] = []
                 for try await piece in stream { collected.append(piece) }
                 return .success(collected)
@@ -205,12 +191,12 @@ struct HermesClientTests {
                 #"{"id":"1","choices":[{"delta":{"content":"hi"},"finish_reason":null}]}"#
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
+        let endpoint = Self.testEndpoint()
 
         let outerTask = Task { () -> Result<Void, Error> in
             await Task.yield() // Let the enclosing .cancel() land first.
             do {
-                _ = try await client.streamChatCompletion(request: Self.testRequest())
+                _ = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: endpoint)
                 return .success(())
             } catch {
                 return .failure(error)
@@ -238,9 +224,7 @@ struct HermesClientTests {
                 #"{"error":{"message":"rate limited","type":"rate_limit","code":"rate_limit_exceeded"}}"#
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
-
-        let stream = try await client.streamChatCompletion(request: Self.testRequest())
+        let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint())
         var collected: [String] = []
         do {
             for try await piece in stream {
@@ -270,10 +254,8 @@ struct HermesClientTests {
             response: Self.httpResponse(url: url, status: 401),
             body: Data(#"{"error":{"message":"Invalid API key","type":"invalid_request_error"}}"#.utf8)
         )
-        await client.setEndpoint(Self.testEndpoint(apiKey: "wrong"))
-
         do {
-            _ = try await client.streamChatCompletion(request: Self.testRequest())
+            _ = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint(apiKey: "wrong"))
             Issue.record("Expected 401 error")
         } catch let error as HermesError {
             if case .httpStatus(let code, let body) = error {
@@ -299,9 +281,7 @@ struct HermesClientTests {
                 "this is not json"
             ])
         )
-        await client.setEndpoint(Self.testEndpoint())
-
-        let stream = try await client.streamChatCompletion(request: Self.testRequest())
+        let stream = try await client.streamChatCompletion(request: Self.testRequest(), endpoint: Self.testEndpoint())
         do {
             for try await _ in stream {}
             Issue.record("Expected decoding error")
