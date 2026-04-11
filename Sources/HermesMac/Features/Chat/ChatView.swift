@@ -33,41 +33,57 @@ public struct ChatView: View {
     }
 
     public var body: some View {
-        Group {
-            if let model {
-                chatContent(model: model)
-            } else {
-                ProgressView()
-            }
+        // L6: no Group wrapper — SwiftUI's `if let` inside `some View`
+        // already picks a single branch per render and handles view
+        // identity correctly, so the Group is dead weight.
+        if let model {
+            chatContent(model: model)
+                .navigationTitle(conversation.title)
+                .task(id: conversation.id) { bootstrapModel() }
+        } else {
+            ProgressView()
+                .navigationTitle(conversation.title)
+                .task(id: conversation.id) { bootstrapModel() }
         }
-        .navigationTitle(conversation.title)
-        .task(id: conversation.id) {
-            let repo = ConversationRepository(context: modelContext)
-            let client = HermesClient()
-            self.model = ChatModel(
-                conversation: conversation,
-                client: client,
-                settings: settings,
-                repository: repo
-            )
-        }
+    }
+
+    /// Creates the ``ChatModel`` for the current conversation.
+    ///
+    /// Extracted so both branches of the `if let model` in ``body``
+    /// can share one call site.
+    private func bootstrapModel() {
+        let repo = ConversationRepository(context: modelContext)
+        let client = HermesClient()
+        self.model = ChatModel(
+            conversation: conversation,
+            client: client,
+            settings: settings,
+            repository: repo
+        )
     }
 
     @ViewBuilder
     private func chatContent(model: ChatModel) -> some View {
+        // M6: `@Bindable` lets us reach into `model.inputText` with a
+        // real `$model.inputText` binding instead of hand-rolling a
+        // get/set trampoline through `Binding(get:set:)`.
+        @Bindable var boundModel = model
+
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 12) {
+                    // M3: `ForEach` already keys off `MessageEntity.id`
+                    // via `Identifiable`. The previous `.id(msg.id)` on
+                    // the row closure was a no-op that broke nothing
+                    // but added noise.
                     ForEach(model.messages) { msg in
                         MessageBubbleView(
                             message: msg,
                             onCopy: { Clipboard.copy(msg.content) },
                             onDelete: { model.deleteMessage(msg) },
-                            onRegenerate: canRegenerate(msg, in: model)
-                                ? { model.regenerate() }
-                                : nil
+                            canRegenerate: canRegenerate(msg, in: model),
+                            onRegenerate: { model.regenerate() }
                         )
-                        .id(msg.id)
                     }
                 }
                 .padding()
@@ -78,10 +94,15 @@ public struct ChatView: View {
                 }
             }
             .onChange(of: model.messages.count) { _, _ in
-                scrollToBottom(proxy: proxy, messages: model.messages)
+                scrollToBottom(proxy: proxy, messages: model.messages, animated: true)
             }
             .onChange(of: model.messages.last?.content) { _, _ in
-                scrollToBottom(proxy: proxy, messages: model.messages)
+                // M2: mid-stream content updates scroll without an
+                // implicit animation. Animating every chunk made the
+                // scroll view judder on fast streams; the newline /
+                // wrap-triggered re-layouts are cheap and look
+                // smoother when they just land.
+                scrollToBottom(proxy: proxy, messages: model.messages, animated: false)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -93,10 +114,7 @@ public struct ChatView: View {
                 }
 
                 MessageComposerView(
-                    text: Binding(
-                        get: { model.inputText },
-                        set: { model.inputText = $0 }
-                    ),
+                    text: $boundModel.inputText,
                     isStreaming: model.isStreaming,
                     focus: $composerFocused,
                     onSend: {
@@ -144,11 +162,27 @@ public struct ChatView: View {
         return model.messages.last?.id == message.id
     }
 
-    private func scrollToBottom(proxy: ScrollViewProxy, messages: [MessageEntity]) {
-        if let last = messages.last {
+    /// Scrolls to the most recent message.
+    ///
+    /// - Parameters:
+    ///   - proxy: The enclosing `ScrollViewProxy` bound to the message list.
+    ///   - messages: The current message array (pass-through so we don't
+    ///     read the model twice from the caller).
+    ///   - animated: When `true`, the scroll eases into place. Mid-stream
+    ///     updates pass `false` so the scroll view keeps up with the
+    ///     token stream without queuing animations on every chunk.
+    private func scrollToBottom(
+        proxy: ScrollViewProxy,
+        messages: [MessageEntity],
+        animated: Bool
+    ) {
+        guard let last = messages.last else { return }
+        if animated {
             withAnimation(.easeOut(duration: 0.15)) {
                 proxy.scrollTo(last.id, anchor: .bottom)
             }
+        } else {
+            proxy.scrollTo(last.id, anchor: .bottom)
         }
     }
 
@@ -188,7 +222,7 @@ public struct ChatView: View {
                         .controlSize(.small)
                     }
                     Button("Sluiten") {
-                        model.chatError = nil
+                        model.dismissError()
                     }
                     .buttonStyle(.bordered)
                     .tint(.white)

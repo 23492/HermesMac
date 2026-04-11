@@ -1,6 +1,6 @@
 # Task 22: chat feature hardening
 
-**Status:** Niet gestart
+**Status:** ✅ Done
 **Dependencies:** Task 17 (error states — shipped)
 **Estimated effort:** 60–90 min
 
@@ -104,13 +104,114 @@ Expected: build zonder warnings. ChatModelTests slagen incl. nieuwe retry-error 
 
 ## Done when
 
-- [ ] All High findings addressed (H1, H2, H3). H4 → followups.
-- [ ] Medium findings addressed (M1–M6).
-- [ ] Low findings (L1, L3, L5, L6) addressed. L2, L4 → followups.
-- [ ] Nieuwe retry-error tests.
-- [ ] `swift build` passes without warnings.
-- [ ] `swift test` passes voor Chat suites.
-- [ ] Self-review tegen de 6 /review skill categorieën — met bijzondere aandacht voor SwiftUI Quality (observation, view identity), Performance (animation scoping, highlightr caching) en Swift Best Practices (weak self in Tasks).
-- [ ] Task file header → `✅ Done` + per-finding completion notes (what/why).
-- [ ] Conventional commit `fix(task22): chat feature hardening` op branch `fix/task22-chat-hardening`, met `file:line` referenties in body.
-- [ ] Branch gepusht naar `origin`.
+- [x] All High findings addressed (H1, H2, H3). H4 → followups.
+- [x] Medium findings addressed (M1–M6).
+- [x] Low findings (L1, L3, L5, L6) addressed. L2, L4 → followups.
+- [x] Nieuwe retry-error tests.
+- [x] `swift build` passes without warnings.
+- [x] `swift test` passes voor Chat suites.
+- [x] Self-review tegen de 6 /review skill categorieën — met bijzondere aandacht voor SwiftUI Quality (observation, view identity), Performance (animation scoping, highlightr caching) en Swift Best Practices (weak self in Tasks).
+- [x] Task file header → `✅ Done` + per-finding completion notes (what/why).
+- [x] Conventional commit `fix(task22): chat feature hardening` op branch `fix/task22-chat-hardening`, met `file:line` referenties in body.
+- [x] Branch gepusht naar `origin`.
+
+## Completion notes
+
+Alle in-scope findings gefixt, `swift build` schoon, alle 24 `ChatModelTests`
+groen, en de hele test suite is clean op één pre-existing failure na
+(`HermesClientTests.listModels maps 401 to httpStatus error` — al bekend als
+followups #2, niet in scope van deze task).
+
+### High
+
+- **H1 (streaming @Observable)** — `ChatModel.performStreaming` mutatie
+  `assistantMessage.content += chunk` bleef onzichtbaar voor SwiftUI omdat
+  het een in-place schrijf op een SwiftData-referentie was en `messages`
+  zelf niet werd aangeraakt. Fix: `private func syncMessages()`
+  (`ChatModel.swift:246`) herberekent `messages` uit
+  `conversation.messages.sorted { ... }` en wordt na elke chunk aangeroepen
+  (`ChatModel.swift:342`). Computed property was geen optie omdat het
+  messages-array op diverse plekken in-place gemuteerd wordt
+  (`append`, `removeAll`) en dat kan niet met een getter.
+- **H2 (weak self in Tasks)** — `slowReplyTask` en `streamingTask`
+  captureden `self` sterk en pinden daarmee het model vast zolang de
+  task leefde. Beide vervangen door `Task { [weak self] in guard let
+  self else { return }; ... }` op `ChatModel.swift:283` en
+  `ChatModel.swift:307`. De slow-reply task neemt de threshold-constante
+  ook als capture zodat er geen `self.` lookup nodig is voor het check.
+- **H3 (chatError private(set) + dismissError)** — `chatError` is nu
+  `public private(set) var chatError: ChatError?` (`ChatModel.swift:30`)
+  met uitgebreide doc comment over de lifecycle. Clearing gaat via
+  `public func dismissError()` (`ChatModel.swift:221`). Test helper
+  `internal func setChatErrorForTesting(_:)` (`ChatModel.swift:231`)
+  laat tests fouten zaaien zonder het hele network pad te draaien.
+  `ChatView`'s error-banner "Sluiten" button roept nu `model.dismissError()`
+  aan (`ChatView.swift:225`).
+
+### Medium
+
+- **M1 (messages sync helper)** — Zie H1, opgelost via `syncMessages()`
+  (`ChatModel.swift:246`).
+- **M2 (mid-stream animation)** — `ChatView.scrollToBottom` neemt nu
+  een `animated: Bool` parameter (`ChatView.swift:174`). Count-change
+  gaat met `animated: true` (`ChatView.swift:97`), mid-stream content
+  updates met `animated: false` (`ChatView.swift:105`) zodat de
+  scroll view niet meer juddert op elke token chunk.
+- **M3 (redundant .id on ForEach row)** — `.id(msg.id)` op het row-
+  closure in `ChatView` verwijderd; `ForEach` gebruikt al
+  `MessageEntity.id` via `Identifiable` (`ChatView.swift:79`).
+- **M4 (@preconcurrency Highlightr documentatie)** — Comment over
+  waarom we `@preconcurrency import Highlightr` nodig hebben staat nu
+  direct boven de import (`CodeBlockView.swift:1`) in plaats van in
+  het class doc comment.
+- **M5 (Highlightr caching)** — `HighlightedCodeBody`, een private
+  `View, Equatable` subview, isoleert de Highlightr call. `.equatable()`
+  laat SwiftUI de re-render skippen als `(code, language, colorScheme)`
+  gelijk blijft (`CodeBlockView.swift:130`). `==` is
+  `nonisolated static` omdat `Equatable` een nonisolated requirement
+  heeft terwijl `View.body` het struct anders main-actor zou plaatsen —
+  dat laat Swift 6 strict concurrency anders terecht een race zien.
+- **M6 (@Bindable trampoline)** — `ChatView.chatContent(model:)`
+  gebruikt nu `@Bindable var boundModel = model` en geeft
+  `text: $boundModel.inputText` door aan de composer
+  (`ChatView.swift:70`, `ChatView.swift:117`). De hand-geschreven
+  `Binding(get:set:)` trampoline is weg.
+
+### Low
+
+- **L1 (MessageBubbleView API tightening)** — `onRegenerate` is geen
+  `(() -> Void)?` meer maar een non-optional closure plus een losse
+  `canRegenerate: Bool` flag (`MessageBubbleView.swift:35`).
+  `ChatView` geeft een `canRegenerate(_:in:)` helper
+  (`ChatView.swift:160`) mee die alleen `true` teruggeeft voor het
+  laatste assistant bericht. De caller hoeft geen optional closure
+  meer te managen.
+- **L3 (TypingIndicator)** — De `" "` fallback voor lege assistant
+  placeholders is vervangen door `TypingIndicatorView`, een private
+  subview die drie bouncende dots toont
+  (`MessageBubbleView.swift:126`). `isEmptyAssistantPlaceholder`
+  (`MessageBubbleView.swift:54`) drijft dit.
+  `.accessibilityLabel("Aan het antwoorden")` zorgt dat VoiceOver
+  het correct voorleest.
+- **L5 (retry tests)** — Twee nieuwe `@Test` functies:
+  `retryNotConfiguredIsNoop` (`ChatModelTests.swift:311`) en
+  `retryAuthenticationIsNoop` (`ChatModelTests.swift:347`). Ze
+  verifiëren dat de banner-invariant `isRetryable == false` klopt
+  voor de configuration-gerelateerde errors, zodat de UI guard het
+  knopje niet toont. Ook een nieuwe `dismissErrorClearsError`
+  (`ChatModelTests.swift:369`). Bestaande retry-tests zijn
+  ge-updated om `setChatErrorForTesting` te gebruiken nu
+  `chatError` private-set is.
+- **L6 (Group wrapper)** — De `Group { ... }` wrapper in `ChatView.body`
+  is weg. De `if let model` produceert al een enkele view via SwiftUI's
+  result builder; bootstrap-logica is naar `bootstrapModel()` gehaald
+  (`ChatView.swift:54`) zodat beide branches één call site delen.
+
+### Deferred naar 99-followups.md
+
+- **H4 (per-call `HermesEndpoint`)** → #3. Raakt `HermesClient` API
+  (Task 19 terrein) en is daarom buiten deze ownership scope.
+- **L2 (UI string i18n consolidation)** → #4. Project-wide, vraagt een
+  aparte consistente aanpak.
+- **L4 (trailing newline Text stripping)** → #5. Edge case in copy-to-
+  clipboard, low-signal.

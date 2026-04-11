@@ -283,3 +283,20 @@ rechtstreeks in een `Text(...)` te tonen.
 Status: open
 
 ---
+
+## 17. [2026-04-11 task-22] `CodeBlockView` trimt trailing newline ook bij Copy
+
+Uit code review 2026-04-11 (Chat review L4). `CodeBlockView.trimmedContent`
+strip alle trailing newlines zodat de fenced-code-block render geen lege
+slotregel laat zien. Dat is voor de zichtbare render prima, maar de *copy*-
+knop kopieert nu ook de getrimde string; als de oorspronkelijke codeblock
+in het antwoord bewust op een newline eindigde (bv. een compleet Python-
+bestand) komt die newline niet mee in de clipboard-paste.
+
+Voorstel: splits `trimmedContent` in `displayContent` (voor de Text-render)
+en `copyContent` (originele string inclusief trailing newline) zodat copy
+de bron-vorm behoudt. Low priority — bijna geen user merkt dit op.
+
+Status: open
+
+---
