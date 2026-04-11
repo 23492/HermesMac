@@ -35,9 +35,29 @@ public struct ConversationListView: View {
     public var body: some View {
         #if os(iOS)
         iosList
+            .overlay { if conversations.isEmpty { emptyListOverlay } }
         #else
         macList
+            .overlay { if conversations.isEmpty { emptyListOverlay } }
         #endif
+    }
+
+    /// Shown in the sidebar/list when there are no conversations yet.
+    /// Sits on top of an empty `List`, so it scrolls away as soon as
+    /// the user creates their first chat.
+    private var emptyListOverlay: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+            Text("Geen chats nog")
+                .font(.headline)
+            Text("Tik op + om te beginnen.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24)
     }
 
     // MARK: - macOS sidebar

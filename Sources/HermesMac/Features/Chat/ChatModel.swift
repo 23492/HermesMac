@@ -18,8 +18,23 @@ public final class ChatModel {
     /// Whether an assistant response is currently being streamed.
     public private(set) var isStreaming: Bool = false
 
-    /// A user-visible error message, set when something goes wrong.
-    public var errorMessage: String?
+    /// Typed error state. Set when a send / regenerate / retry fails,
+    /// cleared the next time the user successfully starts a new request.
+    /// The view layer renders a matching banner or empty state based
+    /// on the specific case — see ``ChatError``.
+    public internal(set) var chatError: ChatError?
+
+    /// Becomes `true` when streaming has been active for more than
+    /// ``slowReplyThreshold`` seconds without receiving the first
+    /// content chunk. The view uses this to surface a "Nog bezig..."
+    /// hint so the user knows the request is alive. Automatically
+    /// cleared on first chunk, cancel, or stream completion.
+    public private(set) var slowReply: Bool = false
+
+    /// How long to wait for the first content chunk before flipping
+    /// ``slowReply`` to `true`. Matches the 15 s threshold from the
+    /// task 17 spec.
+    public static let slowReplyThreshold: TimeInterval = 15
 
     /// The conversation this model manages.
     public private(set) var conversation: ConversationEntity
@@ -35,6 +50,10 @@ public final class ChatModel {
 
     /// The active streaming task, if any.
     private var streamingTask: Task<Void, Never>?
+
+    /// The active "slow reply" timer. Scheduled at the start of every
+    /// stream, cancelled on first chunk or stream completion.
+    private var slowReplyTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -67,7 +86,7 @@ public final class ChatModel {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isStreaming else { return }
         inputText = ""
-        errorMessage = nil
+        chatError = nil
 
         // Cancel any prior streaming task
         streamingTask?.cancel()
@@ -82,7 +101,7 @@ public final class ChatModel {
             )
             messages.append(userMessage)
         } catch {
-            errorMessage = "Kan je bericht niet opslaan: \(error.localizedDescription)"
+            chatError = .other("Kan je bericht niet opslaan: \(error.localizedDescription)")
             return
         }
 
@@ -110,7 +129,7 @@ public final class ChatModel {
             return
         }
 
-        errorMessage = nil
+        chatError = nil
         streamingTask?.cancel()
 
         // Remove the previous assistant answer before requesting a new one
@@ -118,10 +137,49 @@ public final class ChatModel {
             try repository.delete(message: lastAssistant)
             messages.removeAll { $0.id == lastAssistant.id }
         } catch {
-            errorMessage = "Kan vorig antwoord niet verwijderen: \(error.localizedDescription)"
+            chatError = .other("Kan vorig antwoord niet verwijderen: \(error.localizedDescription)")
             return
         }
 
+        startStreaming()
+    }
+
+    /// Re-runs the last request after a network / stream error.
+    ///
+    /// Unlike ``regenerate()`` which requires the user to explicitly ask
+    /// for a new answer, ``retry()`` is meant to be invoked from the
+    /// error banner when ``chatError`` is set and the user wants to try
+    /// the same request again. Any trailing assistant message (empty
+    /// placeholder from a failed attempt, or a partially streamed reply
+    /// from an interrupted stream) is discarded before re-streaming, so
+    /// the request state matches what it looked like just before the
+    /// failure.
+    public func retry() {
+        guard !isStreaming else { return }
+        guard chatError != nil else { return }
+
+        // Drop any trailing assistant message — could be an empty
+        // placeholder the failure path already removed, or a partial
+        // reply from a .streamInterrupted case.
+        if let last = messages.last, last.role == "assistant" {
+            do {
+                try repository.delete(message: last)
+                messages.removeAll { $0.id == last.id }
+            } catch {
+                chatError = .other(
+                    "Kan oud antwoord niet opruimen: \(error.localizedDescription)"
+                )
+                return
+            }
+        }
+
+        // We need a user message to regenerate from
+        guard messages.last?.role == "user" else {
+            chatError = .other("Geen bericht om opnieuw te proberen.")
+            return
+        }
+
+        chatError = nil
         startStreaming()
     }
 
@@ -129,7 +187,10 @@ public final class ChatModel {
     public func cancel() {
         streamingTask?.cancel()
         streamingTask = nil
+        slowReplyTask?.cancel()
+        slowReplyTask = nil
         isStreaming = false
+        slowReply = false
     }
 
     /// Deletes a message from the conversation.
@@ -138,15 +199,16 @@ public final class ChatModel {
             try repository.delete(message: message)
             messages.removeAll { $0.id == message.id }
         } catch {
-            errorMessage = "Kan bericht niet verwijderen: \(error.localizedDescription)"
+            chatError = .other("Kan bericht niet verwijderen: \(error.localizedDescription)")
         }
     }
 
     // MARK: - Private
 
-    /// Shared core used by ``send()`` and ``regenerate()``: creates an empty
-    /// assistant placeholder, snapshots the current message history and
-    /// starts a streaming task that writes chunks into the placeholder.
+    /// Shared core used by ``send()``, ``regenerate()`` and ``retry()``:
+    /// creates an empty assistant placeholder, snapshots the current
+    /// message history and starts a streaming task that writes chunks
+    /// into the placeholder. Also schedules the ``slowReply`` timer.
     private func startStreaming() {
         let assistantMessage: MessageEntity
         do {
@@ -157,11 +219,27 @@ public final class ChatModel {
             )
             messages.append(assistantMessage)
         } catch {
-            errorMessage = "Kan antwoord niet voorbereiden: \(error.localizedDescription)"
+            chatError = .other(
+                "Kan antwoord niet voorbereiden: \(error.localizedDescription)"
+            )
             return
         }
 
         isStreaming = true
+        slowReply = false
+
+        // Schedule the "Nog bezig..." indicator. The Task runs on the
+        // same main actor as its containing class so `self.slowReply`
+        // writes are safe. Cancelled in three places: on first chunk,
+        // on cancel(), and at the tail of performStreaming().
+        slowReplyTask?.cancel()
+        slowReplyTask = Task { [threshold = ChatModel.slowReplyThreshold] in
+            try? await Task.sleep(for: .seconds(threshold))
+            guard !Task.isCancelled else { return }
+            if self.isStreaming {
+                self.slowReply = true
+            }
+        }
 
         // Build message history (exclude the empty assistant placeholder)
         let history = messages
@@ -184,6 +262,8 @@ public final class ChatModel {
         request: ChatCompletionRequest,
         into assistantMessage: MessageEntity
     ) async {
+        var receivedAnyChunk = false
+
         do {
             let endpoint = HermesEndpoint(
                 baseURL: settings.backendURL,
@@ -195,6 +275,14 @@ public final class ChatModel {
 
             for try await chunk in stream {
                 if Task.isCancelled { break }
+                if !receivedAnyChunk {
+                    receivedAnyChunk = true
+                    // First content chunk arrived — tear down the slow
+                    // reply indicator so the hint disappears.
+                    slowReplyTask?.cancel()
+                    slowReplyTask = nil
+                    slowReply = false
+                }
                 assistantMessage.content += chunk
             }
 
@@ -203,7 +291,7 @@ public final class ChatModel {
         } catch is CancellationError {
             // User-initiated cancel — keep partial content
         } catch {
-            errorMessage = error.localizedDescription
+            chatError = categorise(error, receivedAnyChunk: receivedAnyChunk)
             // Remove empty placeholder if nothing was streamed
             if assistantMessage.content.isEmpty {
                 try? repository.delete(message: assistantMessage)
@@ -211,7 +299,40 @@ public final class ChatModel {
             }
         }
 
+        slowReplyTask?.cancel()
+        slowReplyTask = nil
+        slowReply = false
         isStreaming = false
         streamingTask = nil
+    }
+
+    /// Maps a wire-level error into a ``ChatError`` with the appropriate
+    /// UX semantics.
+    ///
+    /// `receivedAnyChunk` distinguishes a transport failure that happens
+    /// before the stream started (`.network`) from one that happens
+    /// mid-reply (`.streamInterrupted`), so the view can keep partial
+    /// content and offer a retry.
+    private func categorise(_ error: Error, receivedAnyChunk: Bool) -> ChatError {
+        if let hermes = error as? HermesError {
+            switch hermes {
+            case .notAuthenticated:
+                return .notConfigured
+            case .httpStatus(code: 401, _):
+                return .authentication
+            case .httpStatus(let code, let body):
+                let detail = body?.prefix(120).description ?? "HTTP \(code)"
+                return .other("HTTP \(code): \(detail)")
+            case .transport(let detail):
+                return receivedAnyChunk ? .streamInterrupted : .network(detail)
+            case .streamEndedUnexpectedly:
+                return .streamInterrupted
+            case .decoding(let detail):
+                return .other("Antwoord niet te lezen: \(detail)")
+            case .invalidURL:
+                return .other("Backend URL is ongeldig.")
+            }
+        }
+        return .other(error.localizedDescription)
     }
 }

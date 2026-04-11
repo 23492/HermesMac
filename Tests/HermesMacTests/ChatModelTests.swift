@@ -41,7 +41,8 @@ struct ChatModelTests {
 
         #expect(model.inputText == "")
         #expect(model.isStreaming == false)
-        #expect(model.errorMessage == nil)
+        #expect(model.chatError == nil)
+        #expect(model.slowReply == false)
         #expect(model.messages.isEmpty)
         #expect(model.conversation.title == "Nieuwe chat")
     }
@@ -55,7 +56,7 @@ struct ChatModelTests {
 
         #expect(model.messages.isEmpty)
         #expect(model.isStreaming == false)
-        #expect(model.errorMessage == nil)
+        #expect(model.chatError == nil)
     }
 
     @Test("send with whitespace-only input does nothing")
@@ -218,5 +219,122 @@ struct ChatModelTests {
         model.regenerate()
 
         #expect(model.messages.count == beforeCount)
+    }
+
+    // MARK: - Retry
+
+    @Test("retry does nothing without chatError")
+    func retryNoError() throws {
+        let model = try makeModel()
+
+        #expect(model.chatError == nil)
+
+        model.retry()
+
+        #expect(model.messages.isEmpty)
+        #expect(model.isStreaming == false)
+    }
+
+    @Test("retry while streaming is ignored")
+    func retryWhileStreamingIgnored() throws {
+        let model = try makeModel()
+        model.inputText = "test"
+        model.send()
+
+        #expect(model.isStreaming == true)
+
+        model.chatError = .network("stub")
+        let before = model.messages.count
+
+        model.retry()
+
+        // Still streaming, no changes
+        #expect(model.isStreaming == true)
+        #expect(model.messages.count == before)
+    }
+
+    @Test("retry after failure re-runs streaming from user tail")
+    func retryAfterFailure() throws {
+        let (conv, client, settings, repo) = try makeDependencies()
+        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        let model = ChatModel(
+            conversation: conv,
+            client: client,
+            settings: settings,
+            repository: repo
+        )
+        // Simulate a prior failed attempt
+        model.chatError = .network("boom")
+
+        #expect(model.messages.count == 1)
+
+        model.retry()
+
+        // Error cleared, assistant placeholder appended, streaming on
+        #expect(model.chatError == nil)
+        #expect(model.messages.count == 2)
+        #expect(model.messages.last?.role == "assistant")
+        #expect(model.isStreaming == true)
+    }
+
+    @Test("retry drops partial assistant reply before re-streaming")
+    func retryDropsPartialAssistant() throws {
+        let (conv, client, settings, repo) = try makeDependencies()
+        _ = try repo.appendMessage(role: "user", content: "hi", to: conv)
+        let partial = try repo.appendMessage(
+            role: "assistant",
+            content: "half an answer...",
+            to: conv
+        )
+        let model = ChatModel(
+            conversation: conv,
+            client: client,
+            settings: settings,
+            repository: repo
+        )
+        model.chatError = .streamInterrupted
+
+        #expect(model.messages.count == 2)
+        #expect(model.messages.last?.id == partial.id)
+
+        model.retry()
+
+        // The partial reply got dropped, a new empty placeholder took
+        // its place
+        #expect(model.messages.count == 2)
+        #expect(model.messages.last?.id != partial.id)
+        #expect(model.messages.last?.role == "assistant")
+        #expect(model.messages.last?.content == "")
+        #expect(model.isStreaming == true)
+    }
+
+    // MARK: - ChatError behaviour
+
+    @Test("ChatError.notConfigured needs settings, not retry")
+    func chatErrorNotConfigured() {
+        let error = ChatError.notConfigured
+        #expect(error.needsSettings == true)
+        #expect(error.isRetryable == false)
+    }
+
+    @Test("ChatError.authentication needs settings, not retry")
+    func chatErrorAuth() {
+        let error = ChatError.authentication
+        #expect(error.needsSettings == true)
+        #expect(error.isRetryable == false)
+    }
+
+    @Test("ChatError.network is retryable, no settings")
+    func chatErrorNetwork() {
+        let error = ChatError.network("timeout")
+        #expect(error.isRetryable == true)
+        #expect(error.needsSettings == false)
+    }
+
+    @Test("ChatError.streamInterrupted is retryable")
+    func chatErrorStreamInterrupted() {
+        let error = ChatError.streamInterrupted
+        #expect(error.isRetryable == true)
+        #expect(error.needsSettings == false)
     }
 }

@@ -6,6 +6,12 @@ public struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
 
+    #if os(macOS)
+    /// SwiftUI built-in action that opens the `Settings` scene
+    /// (`HermesMacApp.body`) when invoked from menu bar or a button.
+    @Environment(\.openSettings) private var openSettings
+    #endif
+
     let conversation: ConversationEntity
 
     @State private var model: ChatModel?
@@ -14,6 +20,13 @@ public struct ChatView: View {
     /// ``HermesMacCommands`` via `.focusedSceneValue(\.focusComposerAction)`
     /// so Cmd+K can pull focus back into the composer.
     @FocusState private var composerFocused: Bool
+
+    #if os(iOS)
+    /// Drives the iOS settings sheet triggered from an error banner's
+    /// "Open Instellingen" button. On macOS the button calls
+    /// `openSettings` directly instead.
+    @State private var showSettings = false
+    #endif
 
     public init(conversation: ConversationEntity) {
         self.conversation = conversation
@@ -59,6 +72,11 @@ public struct ChatView: View {
                 }
                 .padding()
             }
+            .overlay(alignment: .center) {
+                if model.messages.isEmpty, !settings.hasValidConfiguration {
+                    noApiKeyEmptyState
+                }
+            }
             .onChange(of: model.messages.count) { _, _ in
                 scrollToBottom(proxy: proxy, messages: model.messages)
             }
@@ -68,8 +86,10 @@ public struct ChatView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let error = model.errorMessage {
-                    errorBanner(error)
+                if let error = model.chatError {
+                    errorBanner(error, model: model)
+                } else if model.slowReply {
+                    slowReplyBanner
                 }
 
                 MessageComposerView(
@@ -102,6 +122,18 @@ public struct ChatView: View {
         .focusedSceneValue(\.focusComposerAction) {
             composerFocused = true
         }
+        #if os(iOS)
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Klaar") { showSettings = false }
+                        }
+                    }
+            }
+        }
+        #endif
     }
 
     /// Regenerate is only offered on the last assistant message, since
@@ -120,12 +152,127 @@ public struct ChatView: View {
         }
     }
 
-    private func errorBanner(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(Color.red.opacity(0.9))
+    // MARK: - Error banner
+
+    /// Rich error banner keyed off the specific ``ChatError`` case.
+    /// Settings-related errors get an "Open Instellingen" button,
+    /// transport errors get an "Opnieuw proberen" button.
+    @ViewBuilder
+    private func errorBanner(_ error: ChatError, model: ChatModel) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: iconName(for: error))
+                .foregroundStyle(.white)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(error.message)
+                    .font(.callout)
+                    .foregroundStyle(.white)
+
+                HStack(spacing: 8) {
+                    if error.isRetryable {
+                        Button("Opnieuw proberen") {
+                            model.retry()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundStyle(.red)
+                        .controlSize(.small)
+                    }
+                    if error.needsSettings {
+                        Button("Open Instellingen") {
+                            presentSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundStyle(.red)
+                        .controlSize(.small)
+                    }
+                    Button("Sluiten") {
+                        model.chatError = nil
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                    .foregroundStyle(.white)
+                    .controlSize(.small)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.9))
+    }
+
+    /// Muted "nog bezig..." hint shown when streaming takes longer than
+    /// ``ChatModel/slowReplyThreshold`` seconds without any content.
+    private var slowReplyBanner: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Nog bezig met antwoorden...")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+    }
+
+    /// Empty-state rendered inside the chat scroll view when the user
+    /// has no API key yet and no messages exist. Gives them a direct
+    /// path into the settings pane.
+    private var noApiKeyEmptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "key.slash")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+
+            Text("Geen API key ingesteld")
+                .font(.headline)
+
+            Text("Voeg je Hermes API key toe om te beginnen.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                presentSettings()
+            } label: {
+                Label("Open Instellingen", systemImage: "gearshape")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(32)
+        .frame(maxWidth: 320)
+    }
+
+    private func iconName(for error: ChatError) -> String {
+        switch error {
+        case .notConfigured, .authentication:
+            "key.slash"
+        case .network:
+            "wifi.exclamationmark"
+        case .streamInterrupted:
+            "bolt.horizontal.circle"
+        case .other:
+            "exclamationmark.triangle"
+        }
+    }
+
+    /// Opens the settings UI in a platform-appropriate way.
+    ///
+    /// - macOS: triggers the built-in `openSettings` environment action,
+    ///   which surfaces the dedicated `Settings` scene defined in
+    ///   `HermesMacApp`.
+    /// - iOS: flips `showSettings` so the local `.sheet` modifier
+    ///   attached to `chatContent(model:)` presents `SettingsView`.
+    private func presentSettings() {
+        #if os(macOS)
+        openSettings()
+        #else
+        showSettings = true
+        #endif
     }
 }

@@ -8,6 +8,13 @@ public struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
 
+    #if os(macOS)
+    /// Built-in SwiftUI action that opens the dedicated `Settings`
+    /// scene on macOS — used by the "Open Instellingen" button in the
+    /// empty state when the user has not configured an API key yet.
+    @Environment(\.openSettings) private var openSettings
+    #endif
+
     @Query(sort: \ConversationEntity.updatedAt, order: .reverse)
     private var conversations: [ConversationEntity]
 
@@ -75,7 +82,16 @@ public struct RootView: View {
 
     // MARK: - Empty state
 
+    @ViewBuilder
     private var emptyState: some View {
+        if !settings.hasValidConfiguration {
+            needsConfigurationState
+        } else {
+            pickOrCreateState
+        }
+    }
+
+    private var pickOrCreateState: some View {
         VStack(spacing: 16) {
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.system(size: 48))
@@ -85,6 +101,36 @@ public struct RootView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Shown in the detail pane when no API key is configured yet.
+    /// Offers a direct jump into the Settings scene via the built-in
+    /// `openSettings` environment action.
+    private var needsConfigurationState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "key.slash")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+
+            Text("Geen API key ingesteld")
+                .font(.headline)
+
+            Text("Voeg je Hermes API key toe om te beginnen.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            #if os(macOS)
+            Button {
+                openSettings()
+            } label: {
+                Label("Open Instellingen", systemImage: "gearshape")
+            }
+            .buttonStyle(.borderedProminent)
+            #endif
+        }
+        .padding(32)
+        .frame(maxWidth: 360)
     }
 
     // MARK: - Actions
