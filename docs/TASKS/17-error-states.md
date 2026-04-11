@@ -1,6 +1,6 @@
 # Task 17: Error states and retry UX
 
-**Status:** Niet gestart
+**Status:** ✅ Done
 **Dependencies:** Task 08, Task 09
 **Estimated effort:** 30 min
 
@@ -55,7 +55,47 @@ public func retry() async {
 
 ## Done when
 
-- [ ] Alle 6 scenario's hebben een duidelijke UX
-- [ ] Retry knoppen werken
-- [ ] Empty state voor conversation list
-- [ ] Commit: `feat(task17): error states and retry UX`
+- [x] Alle 6 scenario's hebben een duidelijke UX
+- [x] Retry knoppen werken
+- [x] Empty state voor conversation list
+- [x] Commit: `feat(task17): error states and retry UX`
+
+## Completion notes
+
+Commit: `dd5e40d`
+
+Implementatie week op één punt af van de task spec: in plaats van een
+flat `ChatViewState` enum ging ik voor een `ChatError` enum met drie
+computed properties (`message`, `isRetryable`, `needsSettings`). Dat
+houdt de ChatModel state simpel (twee bools + één optionele error)
+zonder dat de view elke scenario apart hoeft uit te pakken — de banner
+leest gewoon `error.isRetryable` en `error.needsSettings` voor de
+knoppen. De zes scenario's mappen nu op:
+
+1. **Geen API key** → `ChatError.notConfigured` + `noApiKeyEmptyState`
+   overlay in ChatView + `needsConfigurationState` in RootView detail
+2. **Backend onbereikbaar** → `ChatError.network(detail)` met "Opnieuw
+   proberen" banner
+3. **401 Invalid key** → `ChatError.authentication` met "Open
+   Instellingen" banner
+4. **Stream onderbroken** → `ChatError.streamInterrupted` met "Opnieuw
+   proberen", partial content blijft staan
+5. **Slow reply** → `slowReply` bool, flipped na 15s zonder chunks,
+   getoond als ultraThinMaterial banner boven de composer
+6. **Empty conversation list** → `emptyListOverlay` op de List
+
+De `retry()` methode drops een trailing assistant message (empty
+placeholder van een gefaalde send of partial content van een
+streamInterrupted) en start opnieuw vanaf de laatste user message.
+
+De `categorise(_:receivedAnyChunk:)` helper mapt `HermesError` naar
+`ChatError`: `.transport` → `.network` of `.streamInterrupted`
+afhankelijk van of de stream al chunks had ontvangen; `401` →
+`.authentication`; `.notAuthenticated` → `.notConfigured`.
+
+Tests: 8 nieuwe ChatModelTests voor retry state machine en ChatError
+semantics. Suite 21/21 op ChatModel, 34/35 overall (pre-existing
+HermesClient listModels 401 flake).
+
+Build verified: `swift build` clean op Swift 6 strict concurrency,
+geen warnings.
