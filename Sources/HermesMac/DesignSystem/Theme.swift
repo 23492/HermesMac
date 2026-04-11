@@ -6,6 +6,23 @@ import SwiftUI
 // `Sendable` on iOS 17+ / macOS 14+. No main-actor isolation is required;
 // the getters are pure functions over platform constants and can be read
 // from any isolation domain under `SWIFT_STRICT_CONCURRENCY=complete`.
+//
+// No asset catalogs are used. Each accessor wraps a semantic platform color
+// directly:
+//
+//   macOS fallback chain:
+//     systemBackground        → NSColor.windowBackgroundColor
+//     secondarySystemBackground → NSColor.controlBackgroundColor
+//     systemGray6              → NSColor.underPageBackgroundColor
+//     separator                → NSColor.separatorColor
+//
+//   iOS fallback chain:
+//     systemBackground        → UIColor.systemBackground
+//     secondarySystemBackground → UIColor.secondarySystemBackground
+//     systemGray6              → UIColor.systemGray6
+//     separator                → UIColor.separator
+//
+//   Other platforms: plain `Color.gray` variants so the module still compiles.
 
 public extension Color {
 
@@ -69,6 +86,67 @@ public extension Color {
     }
 }
 
+// MARK: - Contrast-aware text color
+
+public extension Color {
+
+    /// Returns `.black` or `.white` depending on which provides better contrast
+    /// against the given background color, per WCAG relative luminance guidelines.
+    ///
+    /// Uses the WCAG 2.x luminance threshold of 0.179: backgrounds with relative
+    /// luminance above this value are considered "light" and get black text;
+    /// backgrounds at or below get white text.
+    ///
+    /// - Parameter background: The background color to check contrast against.
+    /// - Returns: `.black` for light backgrounds, `.white` for dark backgrounds.
+    static func contrastingText(against background: Color) -> Color {
+        let luminance = background.relativeLuminance
+        return luminance > 0.179 ? .black : .white
+    }
+
+    /// The WCAG 2.x relative luminance of this color.
+    ///
+    /// Computed by converting sRGB components through the standard linearization
+    /// formula, then weighting R/G/B per the WCAG spec:
+    /// `L = 0.2126 * R_lin + 0.7152 * G_lin + 0.0722 * B_lin`
+    ///
+    /// Falls back to 0.0 (assumed dark) when the color cannot be resolved to
+    /// sRGB components, which avoids a force-unwrap on platforms where color
+    /// space conversion may fail.
+    private var relativeLuminance: Double {
+        #if os(macOS)
+        guard let srgb = NSColor(self).usingColorSpace(.sRGB) else {
+            return 0.0
+        }
+        let r = Double(srgb.redComponent)
+        let g = Double(srgb.greenComponent)
+        let b = Double(srgb.blueComponent)
+        #elseif os(iOS)
+        var cr: CGFloat = 0
+        var cg: CGFloat = 0
+        var cb: CGFloat = 0
+        var ca: CGFloat = 0
+        UIColor(self).getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+        let r = Double(cr)
+        let g = Double(cg)
+        let b = Double(cb)
+        #else
+        // Fallback: assume dark background so we return white text.
+        return 0.0
+        #endif
+
+        func linearize(_ channel: Double) -> Double {
+            channel <= 0.04045
+                ? channel / 12.92
+                : pow((channel + 0.055) / 1.055, 2.4)
+        }
+
+        return 0.2126 * linearize(r)
+             + 0.7152 * linearize(g)
+             + 0.0722 * linearize(b)
+    }
+}
+
 // MARK: - Theme namespace
 
 /// Semantic design tokens for HermesMac UI.
@@ -97,9 +175,11 @@ public enum Theme {
 
     /// Foreground text color on user bubbles.
     ///
-    /// Note: currently hard-coded to white, which assumes a blue-ish
-    /// accent color. See followup #7 for a contrast-aware variant.
-    public static var userBubbleText: Color { .white }
+    /// Contrast-aware: computes WCAG relative luminance of `.accentColor`
+    /// and returns `.black` (light accent) or `.white` (dark accent).
+    public static var userBubbleText: Color {
+        .contrastingText(against: .accentColor)
+    }
 
     /// Divider color for rules and borders.
     public static var divider: Color { .separator }

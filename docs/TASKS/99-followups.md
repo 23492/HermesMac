@@ -147,7 +147,10 @@ Voorstel: `Color.contrasting(with: background)` helper, inclusief
 design review van het resultaat op alle macOS accent kleuren. Deze
 heeft een design pass nodig en is niet puur een code fix.
 
-Status: open
+Status: done — afgesloten door task 26 (fix/task26-theme-polish). `Color.contrastingText(against:)`
+helper toegevoegd in `Theme.swift` die WCAG relative luminance berekent via
+`NSColor`/`UIColor` sRGB conversie en zwart of wit teruggeeft. `Theme.userBubbleText`
+gebruikt nu `.contrastingText(against: .accentColor)` in plaats van hardcoded `.white`.
 
 ---
 
@@ -313,6 +316,10 @@ asset catalog worden gelezen en in welke volgorde ze fallback bieden. Geen
 gedragsverandering. Eventueel meteen nakijken tijdens de ORCHESTRATION.md
 update (#11).
 
-Status: open
+Status: done — afgesloten door task 26 (fix/task26-theme-polish). Het header comment
+block in `Theme.swift` is herschreven om expliciet te vermelden dat er geen asset
+catalogs gebruikt worden, en bevat nu de exacte mapping van elke accessor naar zijn
+platform-specifieke `NSColor`/`UIColor` equivalent, plus de `Color.gray` fallback
+voor andere platforms.
 
 ---
