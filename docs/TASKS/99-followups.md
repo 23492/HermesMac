@@ -180,7 +180,9 @@ referen als voorbeeld, criteria documenteren voor wanneer
 parallellisme veilig is (zero file overlap + geen API dependency tussen
 tasks).
 
-Status: open
+Status: done — afgesloten door task 31. `ORCHESTRATION.md` parallelisme sectie is bijgewerkt
+met post-v1 ervaringen, criteria voor veilig parallelisme, en twee voorbeelden van
+succesvolle multi-agent runs (tasks 19–24 en 25–31).
 
 ---
 
