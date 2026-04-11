@@ -59,9 +59,13 @@ struct HermesMacApp: App {
         WindowGroup {
             rootContent
                 .environment(AppSettings.shared)
+                #if os(macOS)
+                .frame(minWidth: 600, minHeight: 400)
+                #endif
         }
         #if os(macOS)
         .defaultSize(width: 900, height: 700)
+        .windowResizability(.contentMinSize)
         .commands {
             HermesMacCommands()
         }

@@ -56,31 +56,12 @@ public actor HermesClient {
     /// stacktrace.
     private static let errorBodyByteLimit = 4096
 
-    // MARK: - Deprecated stored endpoint (compatibility)
-
-    /// Stored endpoint for callers that still use the legacy
-    /// ``setEndpoint(_:)`` / ``listModels()-6j2tq`` path.
-    /// Prefer the per-call overloads instead.
-    private var _legacyEndpoint: HermesEndpoint?
-
     public init(session: URLSession = .shared) {
         self.session = session
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         self.decoder = decoder
         self.encoder = JSONEncoder()
-    }
-
-    // MARK: - Configuration (deprecated)
-
-    /// Updates the stored endpoint for legacy callers.
-    ///
-    /// New code should pass the endpoint directly to
-    /// ``listModels(endpoint:)`` or
-    /// ``streamChatCompletion(request:endpoint:)`` instead.
-    @available(*, deprecated, message: "Pass endpoint directly to listModels(endpoint:) or streamChatCompletion(request:endpoint:)")
-    public func setEndpoint(_ endpoint: HermesEndpoint?) {
-        _legacyEndpoint = endpoint
     }
 
     // MARK: - Models
@@ -97,17 +78,6 @@ public actor HermesClient {
         } catch {
             throw HermesError.decoding(String(describing: error))
         }
-    }
-
-    /// Legacy overload that reads from the stored endpoint.
-    ///
-    /// Prefer ``listModels(endpoint:)`` for new code.
-    @available(*, deprecated, message: "Use listModels(endpoint:) instead")
-    public func listModels() async throws -> [ModelInfo] {
-        guard let endpoint = _legacyEndpoint else {
-            throw HermesError.notAuthenticated
-        }
-        return try await listModels(endpoint: endpoint)
     }
 
     // MARK: - Streaming chat
@@ -195,20 +165,6 @@ public actor HermesClient {
                 task.cancel()
             }
         }
-    }
-
-    /// Legacy overload that reads from the stored endpoint.
-    ///
-    /// Prefer ``streamChatCompletion(request:endpoint:)`` for new code.
-    @available(macOS 12.0, iOS 15.0, *)
-    @available(*, deprecated, message: "Use streamChatCompletion(request:endpoint:) instead")
-    public func streamChatCompletion(
-        request: ChatCompletionRequest
-    ) async throws -> AsyncThrowingStream<String, Error> {
-        guard let endpoint = _legacyEndpoint else {
-            throw HermesError.notAuthenticated
-        }
-        return try await streamChatCompletion(request: request, endpoint: endpoint)
     }
 
     // MARK: - Private

@@ -106,7 +106,7 @@ tonen (laatste assistant reply), wordt dit een N+1 query.
 Voorstel: `FetchDescriptor` met `relationshipKeyPathsForPrefetching =
 [\.messages]` toevoegen op dat moment.
 
-Status: open (pas nodig wanneer sidebar message preview toont)
+Status: done — afgesloten door task 34. `FetchDescriptor` in `ConversationRepository.listAll()` heeft nu `relationshipKeyPathsForPrefetching = [\.messages]`.
 
 ---
 
@@ -143,7 +143,7 @@ een key-lookup wordt.
 Voorstel: in een eigen task (niet deel van review cleanup) alle
 literals verhuizen naar een String Catalog per feature module.
 
-Status: open (eigen task, lage urgentie)
+Status: done — afgesloten door task 35. `Localizable.xcstrings` aangemaakt met ~50 keys (Dutch als source language). Alle UI files gebruiken nu `String(localized:defaultValue:)` met descriptieve keys.
 
 ---
 

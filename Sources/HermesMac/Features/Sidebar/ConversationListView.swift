@@ -50,14 +50,22 @@ public struct ConversationListView: View {
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.system(size: 36))
                 .foregroundStyle(.secondary)
-            Text("Geen chats nog")
+            Text(String(localized: "emptyState.noChats.title", defaultValue: "Geen chats nog"))
                 .font(.headline)
-            Text("Tik op + om te beginnen.")
+            Text(emptyListHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(24)
+    }
+
+    private var emptyListHint: String {
+        #if os(macOS)
+        String(localized: "emptyState.noChats.hint.mac", defaultValue: "Klik op + om te beginnen.")
+        #else
+        String(localized: "emptyState.noChats.hint.ios", defaultValue: "Tik op + om te beginnen.")
+        #endif
     }
 
     // MARK: - macOS sidebar
@@ -91,7 +99,7 @@ public struct ConversationListView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button(action: onNewChat) {
-                    Label("Nieuwe chat", systemImage: "plus")
+                    Label(String(localized: "action.newChat", defaultValue: "Nieuwe chat"), systemImage: "plus")
                 }
             }
         }
@@ -116,12 +124,12 @@ public struct ConversationListView: View {
                 Button {
                     showSettings = true
                 } label: {
-                    Label("Instellingen", systemImage: "gearshape")
+                    Label(String(localized: "action.settings", defaultValue: "Instellingen"), systemImage: "gearshape")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onNewChat) {
-                    Label("Nieuwe chat", systemImage: "plus")
+                    Label(String(localized: "action.newChat", defaultValue: "Nieuwe chat"), systemImage: "plus")
                 }
             }
         }
@@ -130,7 +138,7 @@ public struct ConversationListView: View {
                 SettingsView()
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button("Klaar") {
+                            Button(String(localized: "common.done", defaultValue: "Klaar")) {
                                 showSettings = false
                             }
                         }

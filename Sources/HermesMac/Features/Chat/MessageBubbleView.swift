@@ -92,14 +92,14 @@ public struct MessageBubbleView: View {
         Button {
             onCopy()
         } label: {
-            Label("Copy", systemImage: "doc.on.doc")
+            Label(String(localized: "contextMenu.copy", defaultValue: "Kopiëren"), systemImage: "doc.on.doc")
         }
 
         if canRegenerate, !isUser {
             Button {
                 onRegenerate()
             } label: {
-                Label("Regenerate", systemImage: "arrow.clockwise")
+                Label(String(localized: "contextMenu.regenerate", defaultValue: "Opnieuw genereren"), systemImage: "arrow.clockwise")
             }
         }
 
@@ -108,7 +108,7 @@ public struct MessageBubbleView: View {
         Button(role: .destructive) {
             onDelete()
         } label: {
-            Label("Delete", systemImage: "trash")
+            Label(String(localized: "contextMenu.delete", defaultValue: "Verwijderen"), systemImage: "trash")
         }
     }
 }
@@ -148,6 +148,6 @@ private struct TypingIndicatorView: View {
         }
         .frame(minHeight: dotSize)
         .onAppear { isAnimating = true }
-        .accessibilityLabel("Aan het antwoorden")
+        .accessibilityLabel(String(localized: "chat.typingIndicator.a11y", defaultValue: "Aan het antwoorden"))
     }
 }

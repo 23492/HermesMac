@@ -1,0 +1,349 @@
+{
+  "sourceLanguage": "nl",
+  "version": "1.0",
+  "strings": {
+    "contextMenu.copy": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kopiëren" }
+        }
+      }
+    },
+    "contextMenu.regenerate": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Opnieuw genereren" }
+        }
+      }
+    },
+    "contextMenu.delete": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Verwijderen" }
+        }
+      }
+    },
+    "chat.typingIndicator.a11y": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Aan het antwoorden" }
+        }
+      }
+    },
+    "chat.error.retry": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Opnieuw proberen" }
+        }
+      }
+    },
+    "chat.error.dismiss": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Sluiten" }
+        }
+      }
+    },
+    "chat.slowReply": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Nog bezig met antwoorden..." }
+        }
+      }
+    },
+    "emptyState.noApiKey.title": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Geen API key ingesteld" }
+        }
+      }
+    },
+    "emptyState.noApiKey.body": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Voeg je Hermes API key toe om te beginnen." }
+        }
+      }
+    },
+    "emptyState.noChats.title": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Geen chats nog" }
+        }
+      }
+    },
+    "emptyState.noChats.hint.mac": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Klik op + om te beginnen." }
+        }
+      }
+    },
+    "emptyState.noChats.hint.ios": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Tik op + om te beginnen." }
+        }
+      }
+    },
+    "emptyState.selectOrCreate": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Selecteer een chat of maak een nieuwe aan" }
+        }
+      }
+    },
+    "action.openSettings": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Open Instellingen" }
+        }
+      }
+    },
+    "action.newChat": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Nieuwe chat" }
+        }
+      }
+    },
+    "action.settings": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Instellingen" }
+        }
+      }
+    },
+    "common.done": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Klaar" }
+        }
+      }
+    },
+    "common.ok": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "OK" }
+        }
+      }
+    },
+    "composer.placeholder": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Bericht..." }
+        }
+      }
+    },
+    "settings.title": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Instellingen" }
+        }
+      }
+    },
+    "settings.section.backend": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Backend" }
+        }
+      }
+    },
+    "settings.backend.server": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Server" }
+        }
+      }
+    },
+    "settings.apiKey.placeholder": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Bearer token" }
+        }
+      }
+    },
+    "settings.apiKey.show": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Toon API key" }
+        }
+      }
+    },
+    "settings.apiKey.hide": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Verberg API key" }
+        }
+      }
+    },
+    "settings.section.apiKey": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "API Key" }
+        }
+      }
+    },
+    "settings.apiKey.footer": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Wordt veilig bewaard in de Keychain, niet in UserDefaults." }
+        }
+      }
+    },
+    "settings.section.test": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Test" }
+        }
+      }
+    },
+    "settings.test.inProgress": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Bezig met testen..." }
+        }
+      }
+    },
+    "settings.test.button": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Test verbinding" }
+        }
+      }
+    },
+    "settings.test.success": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Verbonden. %lld %@ beschikbaar." }
+        }
+      }
+    },
+    "settings.section.about": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Over HermesMac" }
+        }
+      }
+    },
+    "settings.about.version": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Versie" }
+        }
+      }
+    },
+    "settings.about.github": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "GitHub" }
+        }
+      }
+    },
+    "settings.keychain.notFound": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "API-sleutel niet gevonden in de Keychain." }
+        }
+      }
+    },
+    "settings.keychain.blocked": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Keychain-toegang geblokkeerd. Herstart de app en probeer opnieuw." }
+        }
+      }
+    },
+    "settings.keychain.missingEntitlement": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Keychain-toegang ontbreekt. Controleer de app-instellingen." }
+        }
+      }
+    },
+    "settings.keychain.unexpectedStatus": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Onverwachte Keychain-fout (code %lld)." }
+        }
+      }
+    },
+    "root.alert.actionFailed": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kan actie niet uitvoeren" }
+        }
+      }
+    },
+    "root.error.createFailed": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kon geen nieuwe chat maken: %@" }
+        }
+      }
+    },
+    "root.error.deleteFailed": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kon chat niet verwijderen: %@" }
+        }
+      }
+    },
+    "launch.error.title": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kon opslag niet openen" }
+        }
+      }
+    },
+    "launch.error.retry": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Probeer opnieuw" }
+        }
+      }
+    },
+    "launch.error.sendLogs": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Verzend logs" }
+        }
+      }
+    },
+    "error.notConfigured": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Je hebt nog geen API key ingesteld." }
+        }
+      }
+    },
+    "error.authentication": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Je API key klopt niet." }
+        }
+      }
+    },
+    "error.network": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Kan backend niet bereiken: %@" }
+        }
+      }
+    },
+    "error.streamInterrupted": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Verbinding verbroken tijdens antwoord." }
+        }
+      }
+    },
+    "chat.default.title": {
+      "localizations": {
+        "nl": {
+          "stringUnit": { "state": "translated", "value": "Nieuwe chat" }
+        }
+      }
+    }
+  }
+}

@@ -146,7 +146,7 @@ public struct ChatView: View {
                 SettingsView()
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button("Klaar") { showSettings = false }
+                            Button(String(localized: "common.done", defaultValue: "Klaar")) { showSettings = false }
                         }
                     }
             }
@@ -204,7 +204,7 @@ public struct ChatView: View {
 
                 HStack(spacing: 8) {
                     if error.isRetryable {
-                        Button("Opnieuw proberen") {
+                        Button(String(localized: "chat.error.retry", defaultValue: "Opnieuw proberen")) {
                             model.retry()
                         }
                         .buttonStyle(.borderedProminent)
@@ -213,7 +213,7 @@ public struct ChatView: View {
                         .controlSize(.small)
                     }
                     if error.needsSettings {
-                        Button("Open Instellingen") {
+                        Button(String(localized: "action.openSettings", defaultValue: "Open Instellingen")) {
                             presentSettings()
                         }
                         .buttonStyle(.borderedProminent)
@@ -221,7 +221,7 @@ public struct ChatView: View {
                         .foregroundStyle(.red)
                         .controlSize(.small)
                     }
-                    Button("Sluiten") {
+                    Button(String(localized: "chat.error.dismiss", defaultValue: "Sluiten")) {
                         model.dismissError()
                     }
                     .buttonStyle(.bordered)
@@ -244,7 +244,7 @@ public struct ChatView: View {
         HStack(spacing: 8) {
             ProgressView()
                 .controlSize(.small)
-            Text("Nog bezig met antwoorden...")
+            Text(String(localized: "chat.slowReply", defaultValue: "Nog bezig met antwoorden..."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -263,10 +263,10 @@ public struct ChatView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(.secondary)
 
-            Text("Geen API key ingesteld")
+            Text(String(localized: "emptyState.noApiKey.title", defaultValue: "Geen API key ingesteld"))
                 .font(.headline)
 
-            Text("Voeg je Hermes API key toe om te beginnen.")
+            Text(String(localized: "emptyState.noApiKey.body", defaultValue: "Voeg je Hermes API key toe om te beginnen."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -274,7 +274,7 @@ public struct ChatView: View {
             Button {
                 presentSettings()
             } label: {
-                Label("Open Instellingen", systemImage: "gearshape")
+                Label(String(localized: "action.openSettings", defaultValue: "Open Instellingen"), systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
         }

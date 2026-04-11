@@ -78,7 +78,7 @@ public struct LaunchView: View {
                 .foregroundStyle(.orange)
                 .accessibilityHidden(true)
 
-            Text("Kon opslag niet openen")
+            Text(String(localized: "launch.error.title", defaultValue: "Kon opslag niet openen"))
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
 
@@ -92,7 +92,7 @@ public struct LaunchView: View {
                 Button {
                     retry()
                 } label: {
-                    Label("Probeer opnieuw", systemImage: "arrow.clockwise")
+                    Label(String(localized: "launch.error.retry", defaultValue: "Probeer opnieuw"), systemImage: "arrow.clockwise")
                         .frame(minWidth: 160)
                 }
                 .buttonStyle(.borderedProminent)
@@ -101,7 +101,7 @@ public struct LaunchView: View {
             }
 
             Link(destination: Self.issueTrackerURL) {
-                Label("Verzend logs", systemImage: "paperplane")
+                Label(String(localized: "launch.error.sendLogs", defaultValue: "Verzend logs"), systemImage: "paperplane")
                     .font(.footnote)
             }
             .foregroundStyle(.white.opacity(0.9))

@@ -78,12 +78,13 @@ public final class ConversationRepository {
     /// - Throws: ``ConversationRepositoryError/fetchFailed(underlying:)``
     ///   when the underlying SwiftData fetch fails.
     public func listAll() throws -> [ConversationEntity] {
-        let descriptor = FetchDescriptor<ConversationEntity>(
+        var descriptor = FetchDescriptor<ConversationEntity>(
             sortBy: [
                 SortDescriptor(\.updatedAt, order: .reverse),
                 SortDescriptor(\.id)
             ]
         )
+        descriptor.relationshipKeyPathsForPrefetching = [\.messages]
         do {
             return try context.fetch(descriptor)
         } catch {

@@ -30,13 +30,13 @@ public enum ChatError: Equatable, Sendable {
     public var message: String {
         switch self {
         case .notConfigured:
-            "Je hebt nog geen API key ingesteld."
+            String(localized: "error.notConfigured", defaultValue: "Je hebt nog geen API key ingesteld.")
         case .authentication:
-            "Je API key klopt niet."
+            String(localized: "error.authentication", defaultValue: "Je API key klopt niet.")
         case .network(let detail):
-            "Kan backend niet bereiken: \(detail)"
+            String(localized: "error.network", defaultValue: "Kan backend niet bereiken: \(detail)")
         case .streamInterrupted:
-            "Verbinding verbroken tijdens antwoord."
+            String(localized: "error.streamInterrupted", defaultValue: "Verbinding verbroken tijdens antwoord.")
         case .other(let detail):
             detail
         }

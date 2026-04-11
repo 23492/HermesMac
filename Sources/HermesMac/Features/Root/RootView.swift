@@ -52,11 +52,11 @@ public struct RootView: View {
             .focusedSceneValue(\.newChatAction, createNewChat)
             #endif
             .alert(
-                "Kan actie niet uitvoeren",
+                String(localized: "root.alert.actionFailed", defaultValue: "Kan actie niet uitvoeren"),
                 isPresented: repositoryErrorBinding,
                 presenting: repositoryError
             ) { _ in
-                Button("OK", role: .cancel) {
+                Button(String(localized: "common.ok", defaultValue: "OK"), role: .cancel) {
                     repositoryError = nil
                 }
             } message: { wrapper in
@@ -131,7 +131,7 @@ public struct RootView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("Selecteer een chat of maak een nieuwe aan")
+            Text(String(localized: "emptyState.selectOrCreate", defaultValue: "Selecteer een chat of maak een nieuwe aan"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -146,10 +146,10 @@ public struct RootView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("Geen API key ingesteld")
+            Text(String(localized: "emptyState.noApiKey.title", defaultValue: "Geen API key ingesteld"))
                 .font(.headline)
 
-            Text("Voeg je Hermes API key toe om te beginnen.")
+            Text(String(localized: "emptyState.noApiKey.body", defaultValue: "Voeg je Hermes API key toe om te beginnen."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -158,7 +158,7 @@ public struct RootView: View {
             Button {
                 openSettings()
             } label: {
-                Label("Open Instellingen", systemImage: "gearshape")
+                Label(String(localized: "action.openSettings", defaultValue: "Open Instellingen"), systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
             #endif
@@ -188,7 +188,7 @@ public struct RootView: View {
             #endif
         } catch {
             repositoryError = RepositoryErrorWrapper(
-                message: "Kon geen nieuwe chat maken: \(error.localizedDescription)"
+                message: String(localized: "root.error.createFailed", defaultValue: "Kon geen nieuwe chat maken: \(error.localizedDescription)")
             )
         }
     }
@@ -204,7 +204,7 @@ public struct RootView: View {
             try repo.delete(conversation)
         } catch {
             repositoryError = RepositoryErrorWrapper(
-                message: "Kon chat niet verwijderen: \(error.localizedDescription)"
+                message: String(localized: "root.error.deleteFailed", defaultValue: "Kon chat niet verwijderen: \(error.localizedDescription)")
             )
         }
     }
