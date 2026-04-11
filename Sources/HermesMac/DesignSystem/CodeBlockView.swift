@@ -46,7 +46,7 @@ struct CodeBlockView: View {
             header
             ScrollView(.horizontal, showsIndicators: false) {
                 HighlightedCodeBody(
-                    code: trimmedContent,
+                    code: displayContent,
                     language: configuration.language,
                     colorScheme: colorScheme
                 )
@@ -70,7 +70,7 @@ struct CodeBlockView: View {
             Spacer()
 
             Button {
-                Clipboard.copy(trimmedContent)
+                Clipboard.copy(copyContent)
             } label: {
                 Image(systemName: "doc.on.doc")
                     .font(.caption)
@@ -104,10 +104,16 @@ struct CodeBlockView: View {
         return language.uppercased()
     }
 
+    /// The original code content from the configuration, preserved as-is for
+    /// clipboard copy so trailing newlines are not lost.
+    private var copyContent: String {
+        configuration.content
+    }
+
     /// MarkdownUI hands over the fenced code block's content with a trailing
     /// newline; stripping it avoids rendering a blank final line inside the
-    /// code body.
-    private var trimmedContent: String {
+    /// code body. Used only for the visible render, not for clipboard copy.
+    private var displayContent: String {
         var code = configuration.content
         while code.hasSuffix("\n") {
             code.removeLast()

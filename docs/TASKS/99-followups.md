@@ -167,7 +167,9 @@ imports en `MessageBubbleView` caller — buiten Task 24's ownership.
 Voorstel: `git mv` + import updates in een eigen refactor task
 zodra alle parallelle cleanup branches gemerged zijn.
 
-Status: open
+Status: done — afgesloten door task 27 (fix/task27-codeblock-move). `git mv` naar
+`Sources/HermesMac/DesignSystem/CodeBlockView.swift`. Geen import wijzigingen nodig
+(zelfde module). MarkdownTheme.swift compileert ongewijzigd.
 
 ---
 
@@ -302,7 +304,9 @@ Voorstel: splits `trimmedContent` in `displayContent` (voor de Text-render)
 en `copyContent` (originele string inclusief trailing newline) zodat copy
 de bron-vorm behoudt. Low priority — bijna geen user merkt dit op.
 
-Status: open
+Status: done — afgesloten door task 27 (fix/task27-codeblock-move). `trimmedContent`
+gesplitst in `displayContent` (render, trimt trailing newlines) en `copyContent`
+(originele `configuration.content` voor clipboard). Copy button gebruikt nu `copyContent`.
 
 ---
 
