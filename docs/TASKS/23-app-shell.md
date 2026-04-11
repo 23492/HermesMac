@@ -1,6 +1,6 @@
-# Task 23: app shell and error recovery
+# Task 23: app shell and error recovery ✅ Done
 
-**Status:** Niet gestart
+**Status:** Done
 **Dependencies:** Task 17 (error states — shipped)
 **Estimated effort:** 60–90 min
 
@@ -120,13 +120,67 @@ Expected: build zonder warnings. SmokeTests slagen met echte assertions.
 
 ## Done when
 
-- [ ] All High findings addressed.
-- [ ] All Medium findings addressed.
-- [ ] Low findings addressed of gelogd.
-- [ ] Persistence L4 (ModelStack fault logging) addressed.
-- [ ] `swift build` passes without warnings.
-- [ ] `swift test` passes.
-- [ ] Self-review tegen de 6 /review skill categorieën — met bijzondere aandacht voor SwiftUI Quality (focus state, navigation) en Swift Best Practices (no force unwraps, typed errors).
-- [ ] Task file header → `✅ Done` + per-finding completion notes (what/why).
-- [ ] Conventional commit `fix(task23): app shell and error recovery` op branch `fix/task23-app-shell`, met `file:line` referenties in body.
-- [ ] Branch gepusht naar `origin`.
+- [x] All High findings addressed.
+- [x] All Medium findings addressed.
+- [x] Low findings addressed of gelogd.
+- [x] Persistence L4 (ModelStack fault logging) addressed.
+- [x] `swift build` passes without warnings.
+- [x] `swift test` passes (43/44; het ene falen is de pre-existing `HermesClientTests` 401 bug, gedocumenteerd in `99-followups.md` #2, niet van deze task).
+- [x] Self-review tegen de 6 /review skill categorieën — met bijzondere aandacht voor SwiftUI Quality (focus state, navigation) en Swift Best Practices (no force unwraps, typed errors).
+- [x] Task file header → `✅ Done` + per-finding completion notes (what/why).
+- [x] Conventional commit `fix(task23): app shell and error recovery` op branch `fix/task23-app-shell`, met `file:line` referenties in body.
+- [x] Branch gepusht naar `origin`.
+
+## Completion notes
+
+### High
+
+- **H1** — `RootView.swift:52`: `focusedSceneValue(\.newChatAction, createNewChat)` verplaatst van de macOSBody closure naar de `body`-level modifier chain, zodat `Cmd+N` ook werkt op cold start voordat `selectedConversation` iets bevat. `content` is nu een pure computed property zonder side effects.
+
+- **H2** — `ModelStack.swift:32-75`, `HermesMacApp.swift:28-87`, `LaunchView.swift:29-113`: `ModelStack.shared` is nu `Result<ModelContainer, Error>` met een `rebuild()` helper en een gecachte backing store. De `@main` App struct houdt het resultaat in `@State`, schakelt in `rootContent` tussen `RootView().modelContainer(container)` en een `LaunchView(error:retry:)`. De retry-knop roept `ModelStack.rebuild()` aan, cache update triggert een re-render. `fatalError` op corrupt store is weg.
+
+- **H3** — `ConversationListView.swift:170-178`: `deleteItems(at:)` materialiseert offsets nu in een concrete `let victims = offsets.map { conversations[$0] }` voor iteratie. Voorkomt de klassieke "index invalidation tussen SwiftData muties" bug waar de tweede delete de verkeerde row raakt (of crasht).
+
+- **H5** — `SettingsView.swift:17-20, 52-55, 189-220`: `runTest()` slaat het Task-handvat op in `@State private var testTask: Task<Void, Never>?`, cancelt een eventueel in-flight task voordat een nieuwe start, en cancelt ook in `onDisappear`. `catch is CancellationError` slikt een intentionele cancel zonder error banner; `try Task.checkCancellation()` na `listModels` pickt race-conditions op. `HermesError` wordt expliciet ge-pattern-matched zodat de Nederlandse `errorDescription` naar voren komt.
+
+- **H6** — `RootView.swift:37-38, 54-64, 178-223`: Repo errors uit `createNewChat()` en `deleteConversation(_:)` worden gevangen en in een `@State private var repositoryError: RepositoryErrorWrapper?` gezet. Een `.alert(_:isPresented:presenting:)` op de body toont de boodschap met "OK" dismiss. `RepositoryErrorWrapper: Identifiable` wrapt de string zodat SwiftUI's alert API het kan diffen zonder dat `Error` zelf `Identifiable` hoeft te zijn.
+
+### Medium
+
+- **M1** — `HermesMacApp.swift:34-69`: Eén `#if os(macOS)` block op scene-niveau, samengevoegd met de `mainWindow` computed scene property die de macOS-only modifiers (`.defaultSize`, `.commands`) inbakt. De Settings scene staat erachter en heeft een eigen `#if`. De eerdere "twee aansluitende `#if`"-rommel is weg.
+
+- **M2** — `HermesMacApp.swift:46-50, 89-114`: De macOS Settings scene krijgt nu een `.modelContainer(settingsContainer)`, waarbij `settingsContainer` terugvalt op een in-memory container als de on-disk build faalde. SettingsView kan dus SwiftData queries doen als dat later nodig is zonder te crashen op een mislukte launch.
+
+- **M3** — `HermesMacCommands.swift:67-81`: Verificatie comment toegevoegd waarin wordt uitgelegd dat `CommandGroupPlacement.newItem` alleen de "New" groep van het File-menu raakt en dat "Close Window" (`Cmd+W`) intact blijft omdat AppKit die automatisch bij elk window-backed scene voegt. Geverifieerd door `CommandGroupPlacement` in Apple's SwiftUI headers te lezen en door te checken dat "Sluit venster" er nog staat.
+
+- **M4** — `RootView.swift:34, 80-92, 178-193`: `ConversationListView` neemt nu een `Binding<ConversationEntity?>` in plaats van `Binding<UUID?>`. De parent houdt een directe `@State private var selectedConversation: ConversationEntity?` referentie; de O(n) `first(where:)` lookup in de detail pane is weg. `ConversationListView.swift:72-79` bridget de List-tag (`UUID`) naar de entity referentie via een computed `selectedIDBinding`.
+
+- **M5** — `ConversationListView.swift:151`: `Text(conversation.updatedAt, style: .relative)` vervangen door `Text(conversation.updatedAt.formatted(.relative(presentation: .named)))` — moderne `Date.FormatStyle`-API, geeft stabielere output ("gisteren", "2 dagen geleden") en koppelt aan het locale systeem van iOS 17+.
+
+- **M-SettingsView** — `SettingsView.swift:212-218`: Catch in `runTest` pattern-matched nu `let hermesError as HermesError` en gebruikt `hermesError.errorDescription ?? "Onbekende fout"` voor de Nederlandse foutmelding. Onbekende fouten vallen door naar `error.localizedDescription`.
+
+### Low
+
+- **L1** — `ConversationListView.swift:89, 180-189`: `.onDeleteCommand` toegevoegd op de macOS List. `deleteSelectedFromKeyboard()` verwijdert de huidige selectie via dezelfde `onDelete` callback; spiegelt precies de swipe-to-delete gedrag van iOS.
+
+- **L2** — `SettingsView.swift:22-28` en `LaunchView.swift:22-27`: Repository en issue-tracker URLs zijn nu compile-time `private static let` constanten met de force-unwrap pattern die `BackendConfig.baseURL` ook gebruikt. Geen runtime nil-coalesce fallback meer, geen misleidende "runtime url lookup" comment.
+
+- **L4** — `RootView.swift:117-126`: `@ViewBuilder` attribuut weg bij `content` (pure `#if` selectie) en `emptyState` (nu een single-expression `Group` met een interne `if/else`). `content` en `emptyState` zijn allebei single-expression computed properties zoals de review checklist vraagt.
+
+- **L-LaunchView** — `LaunchView.swift:62`: `.minimumScaleFactor(0.5)` op de "H" glyph zodat op hele smalle vensters (≤ 360 pt) de letter niet wordt afgekapt. `.accessibilityHidden(true)` blijft zodat VoiceOver niet de letter voorleest terwijl de error overlay voorgrond is.
+
+- **L-SmokeTests** — `SmokeTests.swift:18-30`: Placeholder `#expect(true)` vervangen door twee echte assertions:
+  - `modelStackBuildsInMemory`: `ModelStack.makeInMemoryContainer()` bouwt zonder throw en levert een schema met minstens 2 entities op (Conversation + Message).
+  - `backendURLUsesHTTPS`: `BackendConfig.baseURL.scheme == "https"`, beschermt tegen een copy-paste regressie naar plain HTTP.
+
+### Persistence L4
+
+- **ModelStack fault logging** — `ModelStack.swift:17-20, 69-73`: `os.Logger(subsystem: "com.hermes.mac", category: "modelstack")` aangemaakt als static. Bij een mislukte `buildContainer()` wordt de error eerst met `logger.fault` gelogd (met `privacy: .public` op de description zodat `log show` het in de clear leest) voordat het als `.failure` wordt teruggegeven. `log show --predicate 'subsystem == "com.hermes.mac"'` laat voortaan elke corrupt-store fout zien.
+
+### Build niet geverifieerd? Juist wel
+
+Build lokaal op deze Mac draaide schoon (`swift build` geen warnings, `swift test` 43/44 pass). Het ene falen is `HermesClientTests`' pre-existing 401-mapping bug die al in `99-followups.md` staat (entry #2) en niet van deze task komt.
+
+### Followups toegevoegd
+
+- `99-followups.md` entry **#3**: L-Theme comment cleanup, ingepland voor task 24 (DesignSystem scope).

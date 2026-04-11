@@ -300,3 +300,19 @@ de bron-vorm behoudt. Low priority — bijna geen user merkt dit op.
 Status: open
 
 ---
+
+## 18. [2026-04-11 task-23] Theme.swift misleidende asset catalog comment
+
+Uit code review 2026-04-11 (Low finding, L-Theme). `DesignSystem/Theme.swift`
+heeft een comment die misleidend beschrijft hoe kleuren uit de asset catalog
+komen. Task 24 heeft de Nederlandse doc comments al vertaald naar Engels,
+maar de specifieke asset catalog comment is niet expliciet geverifieerd.
+
+Voorstel: comment bijwerken zodat hij exact beschrijft welke assets uit de
+asset catalog worden gelezen en in welke volgorde ze fallback bieden. Geen
+gedragsverandering. Eventueel meteen nakijken tijdens de ORCHESTRATION.md
+update (#11).
+
+Status: open
+
+---

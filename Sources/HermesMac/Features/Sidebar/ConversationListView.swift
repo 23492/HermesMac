@@ -6,11 +6,11 @@ import SwiftUI
 /// `NavigationSplitView` sidebar, with the parent view driving the
 /// detail view from the selection binding. On iOS the same data is
 /// presented as a `List` with `NavigationLink` rows so tapping pushes
-/// the chat onto a `NavigationStack`; the `selectedID` binding is
+/// the chat onto a `NavigationStack`; the selection binding is
 /// unused there but kept in the public API for symmetry.
 public struct ConversationListView: View {
     let conversations: [ConversationEntity]
-    @Binding var selectedID: UUID?
+    @Binding var selection: ConversationEntity?
     var onNewChat: () -> Void
     var onDelete: (ConversationEntity) -> Void
 
@@ -22,12 +22,12 @@ public struct ConversationListView: View {
 
     public init(
         conversations: [ConversationEntity],
-        selectedID: Binding<UUID?>,
+        selection: Binding<ConversationEntity?>,
         onNewChat: @escaping () -> Void,
         onDelete: @escaping (ConversationEntity) -> Void
     ) {
         self.conversations = conversations
-        self._selectedID = selectedID
+        self._selection = selection
         self.onNewChat = onNewChat
         self.onDelete = onDelete
     }
@@ -63,14 +63,30 @@ public struct ConversationListView: View {
     // MARK: - macOS sidebar
 
     #if os(macOS)
+    /// Two-way binding between the row selection (driven by
+    /// `ConversationEntity.id`) and the parent's `selection` state.
+    /// The List needs a `Hashable` tag type, and `UUID` is cheaper to
+    /// diff than the model instance — we look up the real entity on
+    /// set so the parent can hold a direct reference and skip an
+    /// O(n) scan on every update.
+    private var selectedIDBinding: Binding<UUID?> {
+        Binding(
+            get: { selection?.id },
+            set: { newID in
+                selection = conversations.first(where: { $0.id == newID })
+            }
+        )
+    }
+
     private var macList: some View {
-        List(selection: $selectedID) {
+        List(selection: selectedIDBinding) {
             ForEach(conversations) { conversation in
                 conversationRow(conversation)
                     .tag(conversation.id)
             }
             .onDelete(perform: deleteItems)
         }
+        .onDeleteCommand(perform: deleteSelectedFromKeyboard)
         .navigationTitle("Hermes")
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -132,20 +148,43 @@ public struct ConversationListView: View {
                 .font(.body)
                 .lineLimit(1)
 
-            Text(conversation.updatedAt, style: .relative)
+            Text(conversation.updatedAt.formatted(.relative(presentation: .named)))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
 
+    // MARK: - Delete
+
+    /// Safe row deletion.
+    ///
+    /// We materialize the victims into a concrete array **before**
+    /// touching the repository. The previous implementation iterated
+    /// `for idx in offsets { ... conversations[idx] }`, which is
+    /// unsafe: SwiftData mutations invalidate indices between calls,
+    /// so the second delete would either target the wrong row or
+    /// crash. Materializing once is O(k) memory for trivially small
+    /// `k` — conversation selections are always tiny — and removes
+    /// the class of bug entirely.
     private func deleteItems(at offsets: IndexSet) {
-        for index in offsets {
-            let conversation = conversations[index]
-            if selectedID == conversation.id {
-                selectedID = nil
+        let victims = offsets.map { conversations[$0] }
+        for conversation in victims {
+            if selection?.id == conversation.id {
+                selection = nil
             }
             onDelete(conversation)
         }
     }
+
+    #if os(macOS)
+    /// Delete-key handler on macOS. Mirrors the swipe-to-delete
+    /// affordance on iOS so power users can drive the sidebar from the
+    /// keyboard.
+    private func deleteSelectedFromKeyboard() {
+        guard let target = selection else { return }
+        selection = nil
+        onDelete(target)
+    }
+    #endif
 }
