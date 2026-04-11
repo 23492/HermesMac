@@ -30,17 +30,17 @@ public struct HermesEndpoint: Sendable, Equatable, CustomStringConvertible {
 
 /// Actor that talks to a Hermes Agent chat completions API.
 ///
-/// Create one instance per app session. Update via ``setEndpoint(_:)`` when
-/// the user changes settings.
+/// Create one instance per call site. Pass a ``HermesEndpoint`` to each
+/// method so the caller controls which backend is targeted — no shared
+/// mutable state needed.
 ///
 /// The streaming path uses `URLSession.bytes(for:)`, which requires
 /// macOS 12+ / iOS 15+. Our minimum deployment target (macOS 14 / iOS 17
 /// per `Package.swift`) comfortably exceeds that, but the explicit
-/// `@available` on ``streamChatCompletion(request:)`` documents the floor
-/// and keeps a linter-like guard in place if the package ever drops its
-/// minimums.
+/// `@available` on ``streamChatCompletion(request:endpoint:)`` documents
+/// the floor and keeps a linter-like guard in place if the package ever
+/// drops its minimums.
 public actor HermesClient {
-    private var endpoint: HermesEndpoint?
     private let session: URLSession
 
     /// Shared decoder for all JSON responses. Uses `convertFromSnakeCase`
@@ -56,6 +56,13 @@ public actor HermesClient {
     /// stacktrace.
     private static let errorBodyByteLimit = 4096
 
+    // MARK: - Deprecated stored endpoint (compatibility)
+
+    /// Stored endpoint for callers that still use the legacy
+    /// ``setEndpoint(_:)`` / ``listModels()-6j2tq`` path.
+    /// Prefer the per-call overloads instead.
+    private var _legacyEndpoint: HermesEndpoint?
+
     public init(session: URLSession = .shared) {
         self.session = session
         let decoder = JSONDecoder()
@@ -64,19 +71,23 @@ public actor HermesClient {
         self.encoder = JSONEncoder()
     }
 
-    // MARK: - Configuration
+    // MARK: - Configuration (deprecated)
 
-    /// Updates the backend the client talks to. Passing `nil` clears the
-    /// endpoint, after which any call throws ``HermesError/notAuthenticated``.
+    /// Updates the stored endpoint for legacy callers.
+    ///
+    /// New code should pass the endpoint directly to
+    /// ``listModels(endpoint:)`` or
+    /// ``streamChatCompletion(request:endpoint:)`` instead.
+    @available(*, deprecated, message: "Pass endpoint directly to listModels(endpoint:) or streamChatCompletion(request:endpoint:)")
     public func setEndpoint(_ endpoint: HermesEndpoint?) {
-        self.endpoint = endpoint
+        _legacyEndpoint = endpoint
     }
 
     // MARK: - Models
 
-    /// Fetches the list of available models from the backend.
-    public func listModels() async throws -> [ModelInfo] {
-        let request = try buildRequest(path: "/models", method: "GET")
+    /// Fetches the list of available models from the given endpoint.
+    public func listModels(endpoint: HermesEndpoint) async throws -> [ModelInfo] {
+        let request = try buildRequest(path: "/models", method: "GET", endpoint: endpoint)
         let (data, response) = try await session.data(for: request)
         try validate(response: response, body: data)
 
@@ -88,9 +99,20 @@ public actor HermesClient {
         }
     }
 
+    /// Legacy overload that reads from the stored endpoint.
+    ///
+    /// Prefer ``listModels(endpoint:)`` for new code.
+    @available(*, deprecated, message: "Use listModels(endpoint:) instead")
+    public func listModels() async throws -> [ModelInfo] {
+        guard let endpoint = _legacyEndpoint else {
+            throw HermesError.notAuthenticated
+        }
+        return try await listModels(endpoint: endpoint)
+    }
+
     // MARK: - Streaming chat
 
-    /// Starts a streaming chat completion.
+    /// Starts a streaming chat completion against the given endpoint.
     ///
     /// Returns an async sequence of content deltas (already parsed strings).
     /// Cancel the surrounding Task to cancel the stream — the cancellation is
@@ -108,9 +130,10 @@ public actor HermesClient {
     /// - Cancellation → `CancellationError`.
     @available(macOS 12.0, iOS 15.0, *)
     public func streamChatCompletion(
-        request: ChatCompletionRequest
+        request: ChatCompletionRequest,
+        endpoint: HermesEndpoint
     ) async throws -> AsyncThrowingStream<String, Error> {
-        var httpRequest = try buildRequest(path: "/chat/completions", method: "POST")
+        var httpRequest = try buildRequest(path: "/chat/completions", method: "POST", endpoint: endpoint)
         httpRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         httpRequest.httpBody = try encoder.encode(request)
 
@@ -172,6 +195,20 @@ public actor HermesClient {
                 task.cancel()
             }
         }
+    }
+
+    /// Legacy overload that reads from the stored endpoint.
+    ///
+    /// Prefer ``streamChatCompletion(request:endpoint:)`` for new code.
+    @available(macOS 12.0, iOS 15.0, *)
+    @available(*, deprecated, message: "Use streamChatCompletion(request:endpoint:) instead")
+    public func streamChatCompletion(
+        request: ChatCompletionRequest
+    ) async throws -> AsyncThrowingStream<String, Error> {
+        guard let endpoint = _legacyEndpoint else {
+            throw HermesError.notAuthenticated
+        }
+        return try await streamChatCompletion(request: request, endpoint: endpoint)
     }
 
     // MARK: - Private
@@ -244,10 +281,12 @@ public actor HermesClient {
         return String(data: buffer, encoding: .utf8)
     }
 
-    private func buildRequest(path: String, method: String) throws -> URLRequest {
-        guard let endpoint else {
-            throw HermesError.notAuthenticated
-        }
+    /// Builds a `URLRequest` targeting the given endpoint.
+    private func buildRequest(
+        path: String,
+        method: String,
+        endpoint: HermesEndpoint
+    ) throws -> URLRequest {
         let fullURL = endpoint.baseURL.appending(path: path)
         var request = URLRequest(url: fullURL)
         request.httpMethod = method

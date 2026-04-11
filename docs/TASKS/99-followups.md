@@ -62,7 +62,11 @@ Voorstel: debounce een `context.save()` elke N chunks of elke T ms in
 de stream loop; rollback bij error. Combineert goed met task 22's
 `syncMessages()` helper die al per chunk aangeroepen wordt.
 
-Status: open
+Status: done — afgesloten door task 32 (fix/task32-chat-robustness). `ChatModel.performStreaming()`
+bevat nu een debounced mid-stream save: elke 2 seconden of elke 20 chunks (wat eerder komt)
+wordt `repository.saveContext()` aangeroepen. Save errors worden gelogd via `os.Logger` maar
+onderbreken de stream niet. `ConversationRepository.saveContext()` is een publieke wrapper rond
+de bestaande private `save()` helper.
 
 ---
 
@@ -118,7 +122,13 @@ territory als pure architecture cleanup.
 Voorstel: signature wordt `streamChatCompletion(messages:model:on:
 endpoint:)`. Task 22 sluit na merge van Task 19.
 
-Status: open
+Status: done — afgesloten door task 32 (fix/task32-chat-robustness). Nieuwe primaire signatures:
+`listModels(endpoint:)` en `streamChatCompletion(request:endpoint:)`. De oude parameter-loze
+overloads en `setEndpoint(_:)` zijn behouden als `@available(*, deprecated)` wrappers omdat
+`SettingsView.swift` en `HermesClientTests.swift` (buiten task 32's ownership) ze nog gebruiken.
+`ChatModel.performStreaming()` gebruikt nu de per-call endpoint signatures direct.
+Followup: migreer `SettingsView.runTest()` en `HermesClientTests` naar de per-call signatures
+in een aparte taak
 
 ---
 
@@ -209,7 +219,12 @@ worden (bv. een aparte banner of label dat het over een server-side error
 gaat in plaats van een netwerk drop), pak die hier op. De huidige mapping
 is een veilige default, geen permanent ontwerp.
 
-Status: open (task 22 verantwoordelijkheid)
+Status: done — afgesloten door task 32 (fix/task32-chat-robustness). Evaluatie: de huidige
+mapping (`.inStream → .streamInterrupted` bij partial content, `.other(message)` anders) is
+voldoende voor v1. De user ziet "Verbinding verbroken" met retry bij partial content, en het
+backend-bericht direct bij geen content. Een apart `ChatError.backendError` case zou UI
+complexiteit toevoegen zonder duidelijk voordeel. Beslissing gedocumenteerd in
+`ChatModel.categorise()` bij de `.inStream` case.
 
 ---
 

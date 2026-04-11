@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import SwiftData
 
 /// State holder for a single chat conversation view.
@@ -63,6 +64,30 @@ public final class ChatModel {
     /// The active "slow reply" timer. Scheduled at the start of every
     /// stream, cancelled on first chunk or stream completion.
     private var slowReplyTask: Task<Void, Never>?
+
+    // MARK: - Mid-stream save tracking
+
+    /// Logger for mid-stream save diagnostics. Save failures are logged
+    /// but never interrupt the stream.
+    private static let logger = Logger(
+        subsystem: "com.hermes.mac",
+        category: "chat-model"
+    )
+
+    /// Number of chunks received since the last mid-stream save.
+    private var chunksSinceLastSave: Int = 0
+
+    /// Timestamp of the last successful mid-stream save, or `nil` if
+    /// no mid-stream save has occurred during the current stream.
+    private var lastMidStreamSave: Date?
+
+    /// How many chunks between mid-stream saves (whichever of this or
+    /// ``midStreamSaveInterval`` is hit first).
+    private static let midStreamSaveChunkThreshold = 20
+
+    /// Time interval between mid-stream saves (whichever of this or
+    /// ``midStreamSaveChunkThreshold`` is hit first).
+    private static let midStreamSaveInterval: TimeInterval = 2
 
     // MARK: - Init
 
@@ -311,20 +336,31 @@ public final class ChatModel {
     }
 
     /// Performs the actual streaming loop, appending chunks to the assistant message.
+    ///
+    /// Mid-stream saves are debounced: every ``midStreamSaveInterval`` seconds
+    /// or every ``midStreamSaveChunkThreshold`` chunks (whichever comes first),
+    /// the repository context is saved. Save errors are logged but never
+    /// interrupt the stream.
     private func performStreaming(
         request: ChatCompletionRequest,
         into assistantMessage: MessageEntity
     ) async {
         var receivedAnyChunk = false
+        chunksSinceLastSave = 0
+        lastMidStreamSave = nil
 
         do {
+            // Per-call endpoint: build once, pass directly — no shared
+            // mutable state on the client actor.
             let endpoint = HermesEndpoint(
                 baseURL: settings.backendURL,
                 apiKey: settings.apiKey
             )
-            await client.setEndpoint(endpoint)
 
-            let stream = try await client.streamChatCompletion(request: request)
+            let stream = try await client.streamChatCompletion(
+                request: request,
+                endpoint: endpoint
+            )
 
             for try await chunk in stream {
                 if Task.isCancelled { break }
@@ -340,6 +376,10 @@ public final class ChatModel {
                 // Re-publish the array so `@Observable` notices the
                 // in-place mutation on the SwiftData reference type.
                 syncMessages()
+
+                // Mid-stream save: protect against crash data loss.
+                chunksSinceLastSave += 1
+                midStreamSaveIfNeeded()
             }
 
             try? repository.touch(conversation)
@@ -360,6 +400,30 @@ public final class ChatModel {
         slowReply = false
         isStreaming = false
         streamingTask = nil
+    }
+
+    /// Saves the repository context if enough chunks or enough wall-clock
+    /// time have elapsed since the last mid-stream save. Errors are logged
+    /// but never propagated — a save failure must not interrupt the stream.
+    private func midStreamSaveIfNeeded() {
+        let now = Date()
+        let timeSinceLastSave = now.timeIntervalSince(
+            lastMidStreamSave ?? .distantPast
+        )
+        let chunkThresholdHit = chunksSinceLastSave >= Self.midStreamSaveChunkThreshold
+        let timeThresholdHit = timeSinceLastSave >= Self.midStreamSaveInterval
+
+        guard chunkThresholdHit || timeThresholdHit else { return }
+
+        do {
+            try repository.saveContext()
+            chunksSinceLastSave = 0
+            lastMidStreamSave = now
+        } catch {
+            Self.logger.warning(
+                "Mid-stream save failed (non-fatal): \(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 
     /// Maps a wire-level error into a ``ChatError`` with the appropriate
@@ -388,9 +452,15 @@ public final class ChatModel {
             case .invalidURL:
                 return .other("Backend URL is ongeldig.")
             case .inStream(let message):
-                // Task 19: structured in-stream backend error. Treat as a
-                // stream interruption if we already have partial content
-                // (so the retry UX kicks in), otherwise surface the message.
+                // Task 19 added structured in-stream backend errors.
+                // Task 32 / followup #12 evaluated whether a dedicated
+                // `ChatError.backendError` case is needed. Decision: the
+                // current mapping is sufficient for v1. When partial content
+                // exists the user sees "Stream onderbroken" with a retry
+                // button (same as any other mid-stream failure). When no
+                // content exists the backend's message is surfaced directly
+                // via `.other`, which is adequate — adding a separate case
+                // would increase UI complexity without clear user benefit.
                 return receivedAnyChunk ? .streamInterrupted : .other(message)
             }
         }

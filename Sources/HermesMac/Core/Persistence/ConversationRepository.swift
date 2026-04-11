@@ -268,6 +268,19 @@ public final class ConversationRepository {
         }
     }
 
+    // MARK: - Context save
+
+    /// Saves the underlying SwiftData context.
+    ///
+    /// Intended for mid-stream saves where the caller wants to flush
+    /// accumulated mutations (e.g. partial assistant content) without going
+    /// through a full CRUD method. Errors are mapped to
+    /// ``ConversationRepositoryError/saveFailed(underlying:)`` like every
+    /// other repository write.
+    public func saveContext() throws {
+        try save()
+    }
+
     // MARK: - Private helpers
 
     /// Wraps `context.save()` so every repository method maps raw SwiftData
