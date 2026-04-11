@@ -25,6 +25,9 @@ let package = Package(
                 .product(name: "Highlightr", package: "Highlightr")
             ],
             path: "Sources/HermesMac",
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
