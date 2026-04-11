@@ -331,6 +331,11 @@ public final class ChatModel {
                 return .other("Antwoord niet te lezen: \(detail)")
             case .invalidURL:
                 return .other("Backend URL is ongeldig.")
+            case .inStream(let message):
+                // Task 19: structured in-stream backend error. Treat as a
+                // stream interruption if we already have partial content
+                // (so the retry UX kicks in), otherwise surface the message.
+                return receivedAnyChunk ? .streamInterrupted : .other(message)
             }
         }
         return .other(error.localizedDescription)
