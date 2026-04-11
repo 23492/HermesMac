@@ -17,26 +17,42 @@ public struct MessageBubbleView: View {
     let message: MessageEntity
     let onCopy: () -> Void
     let onDelete: () -> Void
-    let onRegenerate: (() -> Void)?
+    let canRegenerate: Bool
+    let onRegenerate: () -> Void
 
+    /// Creates a bubble for a single message.
+    ///
+    /// - Parameters:
+    ///   - message: The entity to render.
+    ///   - onCopy: Invoked when the user picks "Copy" from the context menu.
+    ///   - onDelete: Invoked when the user picks "Delete".
+    ///   - canRegenerate: Whether the "Regenerate" action should be
+    ///     offered. Passing `false` hides the menu item while keeping
+    ///     the closure type fixed, so the caller does not have to
+    ///     manage an optional callback.
+    ///   - onRegenerate: Invoked when the user picks "Regenerate". Only
+    ///     called when `canRegenerate` is `true`.
     public init(
         message: MessageEntity,
         onCopy: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        onRegenerate: (() -> Void)? = nil
+        canRegenerate: Bool = false,
+        onRegenerate: @escaping () -> Void = {}
     ) {
         self.message = message
         self.onCopy = onCopy
         self.onDelete = onDelete
+        self.canRegenerate = canRegenerate
         self.onRegenerate = onRegenerate
     }
 
     private var isUser: Bool { message.role == "user" }
 
-    /// Displayed content, falling back to a single space so an empty bubble
-    /// still has a sensible height while a response is streaming in.
-    private var displayContent: String {
-        message.content.isEmpty ? " " : message.content
+    /// `true` while an assistant placeholder has no content yet — the
+    /// streaming response hasn't emitted its first chunk. Drives the
+    /// typing indicator fallback for empty bubbles.
+    private var isEmptyAssistantPlaceholder: Bool {
+        !isUser && message.content.isEmpty
     }
 
     public var body: some View {
@@ -56,11 +72,16 @@ public struct MessageBubbleView: View {
 
     @ViewBuilder
     private var bubbleContent: some View {
-        if isUser {
-            Text(displayContent)
+        if isEmptyAssistantPlaceholder {
+            // L3: real typing indicator instead of a rendered space.
+            // Keeps the bubble the right size *and* tells the user
+            // the assistant is thinking.
+            TypingIndicatorView()
+        } else if isUser {
+            Text(message.content)
                 .textSelection(.enabled)
         } else {
-            Markdown(displayContent)
+            Markdown(message.content)
                 .markdownTheme(colorScheme == .dark ? .hermesDark : .hermesLight)
                 .textSelection(.enabled)
         }
@@ -74,7 +95,7 @@ public struct MessageBubbleView: View {
             Label("Copy", systemImage: "doc.on.doc")
         }
 
-        if let onRegenerate, !isUser {
+        if canRegenerate, !isUser {
             Button {
                 onRegenerate()
             } label: {
@@ -89,5 +110,44 @@ public struct MessageBubbleView: View {
         } label: {
             Label("Delete", systemImage: "trash")
         }
+    }
+}
+
+// MARK: - Typing indicator
+
+/// Three-dot "typing" animation shown inside assistant bubbles that
+/// are waiting for their first streamed chunk.
+///
+/// Each dot scales and fades on a staggered repeat-forever animation
+/// so the group looks like it's bouncing in sequence. The animation
+/// state is local `@State` and only runs while the view is on
+/// screen — empty bubbles go away as soon as the first content chunk
+/// arrives so this is automatic.
+private struct TypingIndicatorView: View {
+    private let dotCount = 3
+    private let dotSize: CGFloat = 7
+    private let animationDuration: Double = 0.6
+
+    @State private var isAnimating = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<dotCount, id: \.self) { index in
+                Circle()
+                    .fill(Color.secondary.opacity(0.7))
+                    .frame(width: dotSize, height: dotSize)
+                    .scaleEffect(isAnimating ? 1.0 : 0.6)
+                    .opacity(isAnimating ? 1.0 : 0.4)
+                    .animation(
+                        .easeInOut(duration: animationDuration)
+                            .repeatForever()
+                            .delay(Double(index) * 0.15),
+                        value: isAnimating
+                    )
+            }
+        }
+        .frame(minHeight: dotSize)
+        .onAppear { isAnimating = true }
+        .accessibilityLabel("Aan het antwoorden")
     }
 }

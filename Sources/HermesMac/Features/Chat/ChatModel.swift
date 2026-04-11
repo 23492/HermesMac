@@ -22,7 +22,12 @@ public final class ChatModel {
     /// cleared the next time the user successfully starts a new request.
     /// The view layer renders a matching banner or empty state based
     /// on the specific case — see ``ChatError``.
-    public internal(set) var chatError: ChatError?
+    ///
+    /// Write access is restricted to the model so error state can only
+    /// be *cleared* from the view layer via ``dismissError()``. This
+    /// keeps the error lifecycle in one place and prevents views from
+    /// masking real failures by blanking `chatError` with a direct write.
+    public private(set) var chatError: ChatError?
 
     /// Becomes `true` when streaming has been active for more than
     /// ``slowReplyThreshold`` seconds without receiving the first
@@ -39,7 +44,11 @@ public final class ChatModel {
     /// The conversation this model manages.
     public private(set) var conversation: ConversationEntity
 
-    /// Sorted messages for display. Kept in sync with the conversation entity.
+    /// Sorted messages for display. Kept in sync with the conversation
+    /// entity via ``syncMessages()`` — callers must use the provided
+    /// helpers (``send()``, ``regenerate()``, ``deleteMessage(_:)``) to
+    /// mutate state; direct writes from outside the model are not
+    /// supported and would not participate in observation.
     public private(set) var messages: [MessageEntity]
 
     // MARK: - Dependencies
@@ -203,7 +212,40 @@ public final class ChatModel {
         }
     }
 
+    /// Clears the current ``chatError`` from the view layer.
+    ///
+    /// Views can call this from a banner dismiss button. Setting
+    /// `chatError` directly from outside the model is intentionally
+    /// not possible — all error state transitions go through here or
+    /// through the request methods.
+    public func dismissError() {
+        chatError = nil
+    }
+
+    // MARK: - Test helpers
+
+    /// Internal hook that lets tests seed an error state without
+    /// exercising the full network path. Not part of the public API
+    /// surface — production code sets `chatError` through the request
+    /// methods, and the view clears it through ``dismissError()``.
+    internal func setChatErrorForTesting(_ error: ChatError?) {
+        chatError = error
+    }
+
     // MARK: - Private
+
+    /// Re-reads the conversation's persisted messages into the
+    /// published ``messages`` array, notifying observers.
+    ///
+    /// This is the only mechanism that reliably triggers SwiftUI view
+    /// updates during streaming: mutating `assistantMessage.content`
+    /// on a SwiftData entity is invisible to `@Observable` because the
+    /// entity is a reference type and the array's identity hasn't
+    /// changed. Re-assigning the whole array forces observation to
+    /// notice.
+    private func syncMessages() {
+        messages = conversation.messages.sorted { $0.createdAt < $1.createdAt }
+    }
 
     /// Shared core used by ``send()``, ``regenerate()`` and ``retry()``:
     /// creates an empty assistant placeholder, snapshots the current
@@ -232,10 +274,16 @@ public final class ChatModel {
         // same main actor as its containing class so `self.slowReply`
         // writes are safe. Cancelled in three places: on first chunk,
         // on cancel(), and at the tail of performStreaming().
+        //
+        // `[weak self]` avoids a strong reference cycle: the task
+        // outlives the caller by up to `slowReplyThreshold` seconds,
+        // and if the view / model is torn down in between we don't
+        // want to keep the model alive just to flip a bool.
         slowReplyTask?.cancel()
-        slowReplyTask = Task { [threshold = ChatModel.slowReplyThreshold] in
+        slowReplyTask = Task { [weak self, threshold = ChatModel.slowReplyThreshold] in
             try? await Task.sleep(for: .seconds(threshold))
             guard !Task.isCancelled else { return }
+            guard let self else { return }
             if self.isStreaming {
                 self.slowReply = true
             }
@@ -252,8 +300,13 @@ public final class ChatModel {
             stream: true
         )
 
-        streamingTask = Task {
-            await performStreaming(request: request, into: assistantMessage)
+        // `[weak self]` matches the slow-reply task: a long-running
+        // SSE stream should not pin the model alive after the view
+        // disappears. If `self` is gone by the time the first chunk
+        // arrives we simply exit.
+        streamingTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performStreaming(request: request, into: assistantMessage)
         }
     }
 
@@ -284,6 +337,9 @@ public final class ChatModel {
                     slowReply = false
                 }
                 assistantMessage.content += chunk
+                // Re-publish the array so `@Observable` notices the
+                // in-place mutation on the SwiftData reference type.
+                syncMessages()
             }
 
             try? repository.touch(conversation)

@@ -1,3 +1,9 @@
+// M4: `@preconcurrency` silences the strict-concurrency warnings that
+// Highlightr would otherwise raise on `Highlightr` and `NSAttributedString`
+// at each call site. Highlightr's public surface is not annotated
+// `Sendable` yet; we isolate the shared instances on the main actor via
+// ``CodeHighlighter`` so the warnings are safe to suppress at import time
+// rather than plaster `nonisolated(unsafe)` across every call site.
 @preconcurrency import Highlightr
 import MarkdownUI
 import SwiftUI
@@ -17,6 +23,16 @@ import SwiftUI
 /// light mode, `github-dark-dimmed` in dark mode. Background is read from
 /// the Highlightr theme so the block stays visually coherent with its
 /// highlight colors.
+///
+/// ### Performance
+/// `Highlightr.highlight(_:as:)` is expensive — it bounces through a
+/// JavaScriptCore context — and SwiftUI calls `body` more often than
+/// you might expect. ``CodeBlockView`` defers to
+/// ``HighlightedCodeBody``, an `Equatable` subview keyed by
+/// `(code, language, colorScheme)`. When inputs don't change, SwiftUI
+/// short-circuits the re-render via ``Equatable/==``, which is how we
+/// keep streaming responses from re-highlighting every code block on
+/// every chunk.
 struct CodeBlockView: View {
 
     @Environment(\.colorScheme) private var colorScheme
@@ -29,9 +45,14 @@ struct CodeBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ScrollView(.horizontal, showsIndicators: false) {
-                codeBody
-                    .padding(CodeBlockStyle.bodyPadding)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HighlightedCodeBody(
+                    code: trimmedContent,
+                    language: configuration.language,
+                    colorScheme: colorScheme
+                )
+                .equatable()
+                .padding(CodeBlockStyle.bodyPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .background(backgroundColor)
@@ -62,28 +83,14 @@ struct CodeBlockView: View {
         .padding(.vertical, CodeBlockStyle.headerVerticalPadding)
     }
 
-    // MARK: - Code body
-
-    @ViewBuilder
-    private var codeBody: some View {
-        let highlighted = highlighter.highlight(trimmedContent, as: configuration.language)
-            ?? NSAttributedString(string: trimmedContent)
-        Text(AttributedString(highlighted))
-            .font(.system(size: CodeBlockStyle.fontSize, design: .monospaced))
-            .textSelection(.enabled)
-    }
-
     // MARK: - Helpers
-
-    private var highlighter: Highlightr {
-        CodeHighlighter.instance(for: colorScheme)
-    }
 
     /// Background color from the active Highlightr theme. Highlightr emits
     /// the `.hljs` background as a plain property on `Theme`, not as an
     /// attribute on the produced `NSAttributedString`, so it has to be
     /// applied to the container separately.
     private var backgroundColor: Color {
+        let highlighter = CodeHighlighter.instance(for: colorScheme)
         if let bg = highlighter.theme?.themeBackgroundColor {
             return Color(platformColor: bg)
         }
@@ -106,6 +113,43 @@ struct CodeBlockView: View {
             code.removeLast()
         }
         return code
+    }
+}
+
+// MARK: - Highlighted body
+
+/// `Equatable` wrapper around the actual `Highlightr` call so SwiftUI
+/// can skip re-running `highlight(_:as:)` when `body` re-evaluates with
+/// the same inputs.
+///
+/// Equality is computed on the three inputs that determine the rendered
+/// `NSAttributedString`: the code string, the language hint, and the
+/// surrounding `ColorScheme`. If any of them change SwiftUI re-renders
+/// and we pay the JavaScriptCore cost; otherwise it reuses the previous
+/// output.
+private struct HighlightedCodeBody: View, Equatable {
+    let code: String
+    let language: String?
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        let highlighter = CodeHighlighter.instance(for: colorScheme)
+        let highlighted = highlighter.highlight(code, as: language)
+            ?? NSAttributedString(string: code)
+        Text(AttributedString(highlighted))
+            .font(.system(size: CodeBlockStyle.fontSize, design: .monospaced))
+            .textSelection(.enabled)
+    }
+
+    // `nonisolated` because `View` puts `body` on the main actor, which
+    // in turn makes this whole struct main-actor-isolated. `Equatable`'s
+    // `==` requirement is declared nonisolated, so without this
+    // annotation Swift 6 strict concurrency rejects the conformance as
+    // a potential data race.
+    nonisolated static func == (lhs: HighlightedCodeBody, rhs: HighlightedCodeBody) -> Bool {
+        lhs.code == rhs.code
+            && lhs.language == rhs.language
+            && lhs.colorScheme == rhs.colorScheme
     }
 }
 
