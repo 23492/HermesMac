@@ -44,3 +44,40 @@ er gedecodeerd wordt. Waarschijnlijk dezelfde check die al in de streaming
 chat path zit missen hier.
 
 Status: open
+
+---
+
+## 3. [2026-04-11 task-21] HermesClientTests "listModels decodes a valid response" crashet met signal 11
+
+Tijdens task 21 (`swift test` run) opgemerkt: de `HermesClient` suite heeft
+een test `listModels decodes a valid response` (`HermesClientTests.swift:?`)
+die nu met een uncaught Foundation exception eindigt (libc++abi terminating
+due to uncaught NSException, stack wijst naar `$sSD8_VariantV8setValue_...`
+in `listModelsSuccess` test). Uncaught exception wordt in `NSDictionary`
+stored in een Swift `Dictionary`. Waarschijnlijk is dit een testing helper
+die een `NSDictionary` niet-Sendable waarde in een JSON fixture stopt en
+sindsdien niet is bijgewerkt voor Swift 6 bridging.
+
+`HermesClient` zelf is buiten Task 21 scope. Deze is óf dezelfde root cause
+als followup #2, óf een aparte test fixture-issue. Toevoegen aan task 22
+(HermesClient review) als die niet al een item hiervoor heeft.
+
+Status: open
+
+---
+
+## 4. [2026-04-11 task-21] `KeychainError.description` en `lastKeychainError` zijn Engelstalig
+
+`KeychainStore.KeychainError.description` gebruikt een Engelse prefix plus
+`SecCopyErrorMessageString(...)` (die wél locale-aware is). Voor developer-
+facing logs is dat prima, maar zodra Task 23 `AppSettings.lastKeychainError`
+in `SettingsView` toont moet die view mappen naar Nederlandse meldingen
+(bv. `case .missingEntitlement → "Keychain-toegang ontbreekt..."`). Niet
+fixen in `KeychainStore` zelf — de struct is een laag onder de UI en hoort
+locale-neutraal te blijven.
+
+Actie voor Task 23: bouw een `KeychainError → String` presenter in
+`SettingsView` die per case een Nederlandse string levert, in plaats van
+de `description` rechtstreeks in een `Text(...)` te tonen.
+
+Status: open
