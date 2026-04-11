@@ -44,3 +44,42 @@ er gedecodeerd wordt. Waarschijnlijk dezelfde check die al in de streaming
 chat path zit missen hier.
 
 Status: open
+
+---
+
+## 7. [2026-04-11 task-24] Theme.userBubbleText contrast-aware op non-blue accents
+
+Task 24 code review: `Theme.userBubbleText` is hard-coded op `.white` wat alleen
+klopt bij een blauw-ish accent color. Bij een lichte accent (gele/cyaan custom
+accent in Settings > Accentkleur) wordt witte tekst op een lichte achtergrond
+onleesbaar. Zie `Sources/HermesMac/DesignSystem/Theme.swift:102`.
+
+Voorstel: gebruik een contrast-aware computed die de luminantie van
+`Color.accentColor` bekijkt en `.white` / `.black` teruggeeft. Overweeg
+`Color(NSColor(name: nil, dynamicProvider: { appearance in ... }))` voor
+appearance-aware tokens of een dedicated `PlatformColor`-brug. Vereist een
+design pass — niet alleen code — omdat ook de hover/press states en eventuele
+borders mee moeten.
+
+Status: open
+
+---
+
+## 8. [2026-04-11 task-24] Verplaats CodeBlockView van Features/Chat/ naar DesignSystem/
+
+Task 24 code review: `MarkdownTheme.hermes` (`DesignSystem/MarkdownTheme.swift`)
+refereert `CodeBlockView`, maar `CodeBlockView` woont in
+`Sources/HermesMac/Features/Chat/CodeBlockView.swift`. Dat is een
+cross-layer dependency — de DesignSystem-laag hoort niks uit Features/ te
+importeren. Technisch werkt het omdat ze in dezelfde module zitten, maar het
+breekt de architectuur-intentie uit `docs/ARCHITECTURE.md` dat DesignSystem
+de onderste laag is.
+
+Voorstel: verhuis `CodeBlockView.swift` + `CodeBlockStyle` (en de
+`PlatformColor`-bridge extension) naar `Sources/HermesMac/DesignSystem/`.
+Update de imports en alle call sites. Het is een pure verplaatsing zonder
+gedragschange. Raakt 1 file in Features en voegt 1 file toe in DesignSystem.
+Past niet in Task 24 omdat de taak expliciet `Features/Chat/*` buiten scope
+zet.
+
+Status: open
