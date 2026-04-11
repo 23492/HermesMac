@@ -280,7 +280,10 @@ Voorstel: bouw een `KeychainError → String` presenter in `SettingsView`
 die per case een Nederlandse string levert, in plaats van de `description`
 rechtstreeks in een `Text(...)` te tonen.
 
-Status: open
+Status: done — afgesloten door task 28 (fix/task28-keychain-presenter). `SettingsView.swift`
+bevat nu `localizedKeychainError(_:)` die elke `KeychainError` case mapt naar een Nederlandse
+user-facing string. De API Key section footer toont de gelokaliseerde foutmelding wanneer
+`AppSettings.lastKeychainError` niet nil is.
 
 ---
 
