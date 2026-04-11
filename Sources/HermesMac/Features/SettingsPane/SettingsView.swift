@@ -92,9 +92,20 @@ public struct SettingsView: View {
         } header: {
             Text("API Key")
         } footer: {
-            Text("Wordt veilig bewaard in de Keychain, niet in UserDefaults.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Wordt veilig bewaard in de Keychain, niet in UserDefaults.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let error = settings.lastKeychainError {
+                    Label(
+                        localizedKeychainError(error),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                }
+            }
         }
     }
 
@@ -127,6 +138,25 @@ public struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// Maps a ``KeychainError`` to a Dutch user-facing string.
+    ///
+    /// ``KeychainError/description`` is intentionally locale-neutral (English
+    /// plus `SecCopyErrorMessageString` output) so the store layer stays
+    /// presentation-agnostic. This helper lives in the view layer and produces
+    /// the Dutch phrasing shown to the user in the settings pane.
+    private func localizedKeychainError(_ error: KeychainError) -> String {
+        switch error {
+        case .itemNotFound:
+            return "API-sleutel niet gevonden in de Keychain."
+        case .interactionNotAllowed:
+            return "Keychain-toegang geblokkeerd. Herstart de app en probeer opnieuw."
+        case .missingEntitlement:
+            return "Keychain-toegang ontbreekt. Controleer de app-instellingen."
+        case .unexpectedStatus(let status):
+            return "Onverwachte Keychain-fout (code \(status))."
+        }
+    }
 
     /// Two-way binding into the Keychain-backed ``AppSettings/apiKey``
     /// that only triggers a write when the value actually differs —
