@@ -88,7 +88,40 @@ Voor volledige compile- en run-tests heb je een Mac nodig. Die stap doet Kiran h
 
 ## Parallelisme
 
-**Niet doen voor v1.** Taken hebben dependencies. De task lijst is sequentieel. Pas als we een fase bereiken waar meerdere onafhankelijke tracks parallel kunnen (bv. task 13 macOS shell en task 14 iOS shell tegelijk), kunnen we twee instances spawnen via `delegate_task` met `tasks:[...]`.
+### Wanneer parallelisme WEL veilig is
+
+Post-v1 hebben we twee succesvolle multi-agent parallel runs gedaan. Parallelisme werkt als aan **alle** criteria is voldaan:
+
+1. **Zero file overlap** — elke agent schrijft alleen naar bestanden die exclusief van die task zijn. Gebruik een conflict firewall tabel om dit vooraf te verifiëren (zie voorbeeld hieronder).
+2. **Geen API/data dependency** — geen task leest output die een andere parallelle task nog moet produceren.
+3. **Exclusief file ownership** — elke task file somt expliciet op welke bestanden die task mag wijzigen. Agents die buiten hun ownership schrijven worden geweigerd bij review.
+
+#### Conflict firewall tabel (voorbeeld)
+
+| Task | Owned files | Conflicten |
+|------|------------|------------|
+| 19   | `Networking/*.swift`, `Tests/…/HermesClientTests.swift` | geen |
+| 20   | `Persistence/*.swift`, `Tests/…/ModelStackTests.swift` | geen |
+| 21   | `Settings/*.swift`, `Tests/…/SettingsTests.swift` | geen |
+| 22   | `Features/Chat/*.swift`, `Tests/…/ChatModelTests.swift` | geen |
+| 23   | `Features/Sidebar/*.swift` | geen |
+| 24   | `DesignSystem/*.swift` | geen |
+
+Als de tabel een overlap laat zien: die tasks moeten sequentieel.
+
+### Wanneer parallelisme NIET veilig is
+
+- **Gedeelde bestanden** — als twee tasks dezelfde model- of view-file raken, leidt een parallel merge tot conflicten of subtiele regressies.
+- **Sequentiële dependencies** — als task B de output van task A nodig heeft (bv. een nieuw type of protocol), moet A eerst gemerged zijn.
+- **Pre-v1 takenlijst** — de originele v1 roadmap (tasks 0–18) was bewust sequentieel; elke task bouwde voort op de vorige.
+
+### Succesvolle parallel runs
+
+**Tasks 19–24: 6-agent parallel code review remediation (2026-04-11)**
+Zes agents draaiden simultaan, elk op een disjoint set bestanden (Networking, Persistence, Settings, Chat, Sidebar, DesignSystem). Alle zes branches mergeden schoon zonder conflicten.
+
+**Tasks 25–31: 7-agent Phase 1 followup remediation (2026-04-11)**
+Zelfde zero-overlap patroon, nu met zeven agents op de followup-taken van de eerdere review. Weer schone merges dankzij strikte file ownership per task.
 
 ## Failure recovery
 
